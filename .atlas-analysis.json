@@ -1,0 +1,128 @@
+{
+  "projectType": "framework",
+  "projectName": "Darwin",
+  "projectDescription": "An AI-powered browser automation framework that observes user behavior and automatically evolves UI/UX based on real interactions",
+  "theme": "aspen",
+  "primaryColor": "#8B5CF6",
+  "lightColor": "#A78BFA",
+  "darkColor": "#7C3AED",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/architecture",
+              "concepts/browser-agent",
+              "concepts/evolution-pipeline",
+              "concepts/analytics-tracking"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/configuration",
+              "guides/cli-usage",
+              "guides/programmatic-usage",
+              "guides/api-server",
+              "guides/dashboard",
+              "guides/models",
+              "guides/mcp-integrations"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "CLI Reference",
+        "groups": [
+          {
+            "group": "Commands",
+            "pages": [
+              "cli/init",
+              "cli/run",
+              "cli/config",
+              "cli/evolve"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Core Classes",
+            "pages": [
+              "api/browser-agent",
+              "api/analyst",
+              "api/config"
+            ]
+          },
+          {
+            "group": "HTTP Endpoints",
+            "pages": [
+              "api/endpoints/status",
+              "api/endpoints/run",
+              "api/endpoints/evolve",
+              "api/endpoints/sessions"
+            ]
+          },
+          {
+            "group": "Types & Interfaces",
+            "pages": [
+              "api/types"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Examples",
+        "groups": [
+          {
+            "group": "Use Cases",
+            "pages": [
+              "examples/basic-automation",
+              "examples/form-filling",
+              "examples/ui-evolution",
+              "examples/custom-workflows"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "AI-powered browser automation with human-like navigation",
+    "Self-evolving UI/UX based on real user behavior analytics",
+    "Multiple modes: CLI, programmatic API, and HTTP server",
+    "Real-time dashboard for monitoring agent sessions",
+    "Hybrid DOM and coordinate-based automation",
+    "Visual overlays for reasoning, timing, and analytics tracking",
+    "Support for multiple AI models (Gemini, Claude, OpenAI)",
+    "MCP integration support for extended capabilities"
+  ],
+  "publicApiSurface": [
+    "BrowserAgent class - Main automation engine",
+    "Analyst class - Analyzes behavior and generates improvements",
+    "darwin init - Initialize configuration",
+    "darwin run - Execute automation tasks",
+    "darwin config - Manage settings",
+    "darwin evolve - Full evolution pipeline",
+    "POST /api/run - Run agent via HTTP",
+    "POST /api/evolve - Trigger evolution pipeline",
+    "GET /api/sessions - List agent sessions",
+    "GET /api/stream/:sessionId - Stream session logs (SSE)",
+    "loadConfig() - Load configuration file",
+    "createDefaultConfig() - Create default config",
+    "startDarwin() - Start API server"
+  ]
+}
