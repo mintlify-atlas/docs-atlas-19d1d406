@@ -1,0 +1,247 @@
+---
+title: 'BrowserAgent'
+description: 'Core class for controlling browser automation with AI agents'
+icon: 'robot'
+---
+
+## Overview
+
+The `BrowserAgent` class is the main interface for executing AI-powered browser automation tasks. It uses Stagehand under the hood to control browsers and execute multi-step tasks with reasoning capabilities.
+
+## Constructor
+
+<ParamField path="config" type="BrowserAgentConfig" required>
+  Configuration object for the browser agent
+  
+  <Expandable title="BrowserAgentConfig Properties">
+    <ParamField path="website" type="string" required>
+      The URL to navigate to
+    </ParamField>
+    
+    <ParamField path="task" type="string" required>
+      Description of the task to execute
+    </ParamField>
+    
+    <ParamField path="taskName" type="string">
+      Task name/title for analytics (separate from task description)
+    </ParamField>
+    
+    <ParamField path="model" type="string" default="google/gemini-3-flash-preview">
+      AI model to use for task execution
+    </ParamField>
+    
+    <ParamField path="maxSteps" type="number" default={20}>
+      Maximum number of steps the agent can take
+    </ParamField>
+    
+    <ParamField path="env" type="'LOCAL' | 'BROWSERBASE'" default="LOCAL">
+      Environment to run the browser in
+    </ParamField>
+    
+    <ParamField path="apiKey" type="string">
+      BrowserBase API key (required for BROWSERBASE env)
+    </ParamField>
+    
+    <ParamField path="projectId" type="string">
+      BrowserBase project ID (required for BROWSERBASE env)
+    </ParamField>
+    
+    <ParamField path="verbose" type="0 | 1 | 2" default={1}>
+      Logging verbosity level (0=silent, 1=info, 2=debug)
+    </ParamField>
+    
+    <ParamField path="systemPrompt" type="string">
+      Custom system prompt for the AI agent
+    </ParamField>
+    
+    <ParamField path="thinkingFormat" type="string">
+      Instructions for how the agent should format its thinking
+    </ParamField>
+    
+    <ParamField path="onEvent" type="(type: 'think' | 'action' | 'status' | 'error', data: any) => void">
+      Callback function for agent events
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+```typescript
+import { BrowserAgent } from '@darwin/sdk';
+
+const agent = new BrowserAgent({
+  website: 'https://example.com',
+  task: 'Click the sign up button and fill out the registration form',
+  model: 'google/gemini-3-flash-preview',
+  maxSteps: 20,
+  env: 'LOCAL',
+  verbose: 1
+});
+```
+
+## Methods
+
+### init()
+
+Initializes the Stagehand browser instance.
+
+```typescript
+await init(): Promise<void>
+```
+
+**Returns:** `Promise<void>`
+
+**Throws:** Error if BROWSERBASE mode is selected but API credentials are missing
+
+<CodeGroup>
+```typescript Example
+await agent.init();
+```
+</CodeGroup>
+
+### execute()
+
+Executes the configured task and streams output in real-time.
+
+```typescript
+await execute(): Promise<{
+  thoughts: ThoughtEntry[];
+  result: any;
+  steps: number;
+}>
+```
+
+**Returns:** `Promise<ExecuteResult>`
+
+<ResponseField name="thoughts" type="ThoughtEntry[]">
+  Array of thought entries captured during execution
+</ResponseField>
+
+<ResponseField name="result" type="object">
+  Final execution result from Stagehand
+  
+  <Expandable title="Result Properties">
+    <ResponseField name="success" type="boolean">
+      Whether the task completed successfully
+    </ResponseField>
+    
+    <ResponseField name="message" type="string">
+      Human-readable result message
+    </ResponseField>
+    
+    <ResponseField name="actions" type="array">
+      Array of actions taken during execution
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="steps" type="number">
+  Number of steps taken during execution
+</ResponseField>
+
+**Throws:** Error if agent is not initialized (call `init()` first)
+
+<CodeGroup>
+```typescript Example
+const { thoughts, result, steps } = await agent.execute();
+
+console.log(`Completed in ${steps} steps`);
+console.log(`Success: ${result.success}`);
+console.log(`Thoughts: ${thoughts.length}`);
+```
+</CodeGroup>
+
+### close()
+
+Closes the browser and cleans up resources. Sends analytics events before closing.
+
+```typescript
+await close(): Promise<void>
+```
+
+**Returns:** `Promise<void>`
+
+<CodeGroup>
+```typescript Example
+await agent.close();
+```
+</CodeGroup>
+
+## Complete Example
+
+```typescript
+import { BrowserAgent } from '@darwin/sdk';
+
+async function runTask() {
+  const agent = new BrowserAgent({
+    website: 'https://example.com',
+    task: 'Find the pricing page and extract the plan details',
+    model: 'google/gemini-3-flash-preview',
+    maxSteps: 15,
+    env: 'LOCAL',
+    verbose: 1,
+    onEvent: (type, data) => {
+      if (type === 'think') {
+        console.log('Agent thinking:', data);
+      } else if (type === 'action') {
+        console.log('Agent action:', data.toolName);
+      }
+    }
+  });
+
+  try {
+    await agent.init();
+    const { thoughts, result, steps } = await agent.execute();
+    
+    console.log(`Task completed in ${steps} steps`);
+    console.log(`Result: ${result.message}`);
+    console.log(`Thoughts captured: ${thoughts.length}`);
+  } finally {
+    await agent.close();
+  }
+}
+
+runTask();
+```
+
+## Event Callbacks
+
+The `onEvent` callback receives different event types during execution:
+
+### Event Types
+
+<ParamField path="think" type="object">
+  Emitted when the agent is reasoning about its next action
+  
+  ```typescript
+  { thought: string }
+  ```
+</ParamField>
+
+<ParamField path="action" type="object">
+  Emitted when the agent performs an action
+  
+  ```typescript
+  { toolName: string, args: any }
+  ```
+</ParamField>
+
+<ParamField path="status" type="object">
+  Emitted when execution status changes
+  
+  ```typescript
+  { status: 'running' | 'completed' | 'error' }
+  ```
+</ParamField>
+
+<ParamField path="error" type="object">
+  Emitted when an error occurs
+  
+  ```typescript
+  { message: string }
+  ```
+</ParamField>
+
+## See Also
+
+- [ThoughtEntry](/api/types#thoughtentry) - Structure of thought entries
+- [BrowserAgentConfig](/api/types#browseragentconfig) - Full configuration interface
+- [/api/run endpoint](/api/endpoints/run) - HTTP API for running agents

@@ -1,0 +1,556 @@
+---
+title: Programmatic Usage
+description: Use Darwin's BrowserAgent and Analyst classes directly in your code
+---
+
+## Overview
+
+While the CLI is convenient, you can also use Darwin's core classes programmatically in your own TypeScript/JavaScript applications.
+
+<Info>
+This gives you full control over the agent lifecycle, event handling, and integration with your existing systems.
+</Info>
+
+## Installation
+
+Add Darwin to your project:
+
+```bash
+# From the monorepo
+cd your-project
+npm install /path/to/darwin/packages/darwin-sdk
+```
+
+Or reference it directly if you're in the monorepo:
+
+```json package.json
+{
+  "dependencies": {
+    "darwin-ui": "workspace:*"
+  }
+}
+```
+
+## Basic Usage
+
+### Simple Agent Execution
+
+```typescript
+import { BrowserAgent } from "darwin-ui/core/browser-agent";
+
+async function runAgent() {
+  const agent = new BrowserAgent({
+    website: "https://example.com",
+    task: "Find the contact page and fill out the form",
+    model: "google/gemini-3-flash-preview",
+    maxSteps: 20,
+    verbose: 2
+  });
+
+  try {
+    // Initialize the browser
+    await agent.init();
+    console.log("Agent initialized");
+
+    // Execute the task
+    const { thoughts, result, steps } = await agent.execute();
+    
+    console.log(`Task completed in ${steps} steps`);
+    console.log(`Captured ${thoughts.length} thoughts`);
+    console.log("Result:", result);
+
+    // Print thoughts
+    thoughts.forEach((thought, i) => {
+      console.log(`${i + 1}. ${thought.text}`);
+    });
+  } finally {
+    // Always close the browser
+    await agent.close();
+  }
+}
+
+runAgent().catch(console.error);
+```
+
+### With Event Callbacks
+
+```typescript
+import { BrowserAgent } from "darwin-ui/core/browser-agent";
+
+const agent = new BrowserAgent({
+  website: "https://example.com",
+  task: "Navigate to pricing",
+  onEvent: (type, data) => {
+    switch (type) {
+      case 'think':
+        console.log("💭 Thought:", data.thought);
+        break;
+      case 'action':
+        console.log("🔧 Action:", data.toolName, data.args);
+        break;
+      case 'status':
+        console.log("📄 Status:", data.status);
+        break;
+      case 'error':
+        console.error("❌ Error:", data.message);
+        break;
+    }
+  }
+});
+
+await agent.init();
+await agent.execute();
+await agent.close();
+```
+
+## BrowserAgent API
+
+### Constructor
+
+```typescript
+interface BrowserAgentConfig {
+  website: string;              // Target URL (required)
+  task: string;                 // Task description (required)
+  taskName?: string;            // Task name for analytics
+  model?: string;               // AI model
+  maxSteps?: number;            // Max action steps
+  env?: "LOCAL" | "BROWSERBASE";  // Environment
+  apiKey?: string;              // Browserbase API key
+  projectId?: string;           // Browserbase project ID
+  verbose?: 0 | 1 | 2;          // Logging level
+  systemPrompt?: string;        // Custom system prompt
+  thinkingFormat?: string;      // Custom thinking format (deprecated)
+  onEvent?: (type: "think" | "action" | "status" | "error", data: any) => void;
+}
+
+const agent = new BrowserAgent(config);
+```
+
+### Methods
+
+#### init()
+
+Initialize the Stagehand browser instance.
+
+```typescript
+await agent.init();
+```
+
+**Returns**: `Promise<void>`
+
+**Throws**: Error if browser fails to launch or API keys are missing
+
+---
+
+#### execute()
+
+Execute the configured task.
+
+```typescript
+const result = await agent.execute();
+```
+
+**Returns**:
+
+```typescript
+interface ExecuteResult {
+  thoughts: ThoughtEntry[];  // Captured reasoning
+  result: any;               // Stagehand execution result
+  steps: number;             // Number of steps taken
+}
+
+interface ThoughtEntry {
+  step: number;
+  text: string;
+  timestamp: string;
+  source: 'stream' | 'step_finish' | 'tool_result' | 'final_reasoning';
+}
+```
+
+---
+
+#### close()
+
+Close the browser and clean up.
+
+```typescript
+await agent.close();
+```
+
+**Returns**: `Promise<void>`
+
+<Warning>
+Always call `close()` in a `finally` block to ensure cleanup happens even if errors occur.
+</Warning>
+
+## Analyst API
+
+### Constructor
+
+```typescript
+import { Analyst } from "darwin-ui/core/analyst";
+
+const analyst = new Analyst(targetAppPath?: string);
+```
+
+**Parameters**:
+- `targetAppPath`: Path to the application code to modify (default: `../../demo-app`)
+
+### Methods
+
+#### analyze()
+
+Analyze analytics and thoughts to identify UX problems.
+
+```typescript
+import { AnalyticsSnapshot } from "darwin-ui/helpers/analytic-types";
+
+const analysis = await analyst.analyze(analytics, thoughts);
+```
+
+**Parameters**:
+
+```typescript
+interface AnalyticsSnapshot {
+  events: any[];  // Array of analytics events
+}
+
+interface ThoughtEntry {
+  step: number;
+  text: string;
+  timestamp: string;
+  source: string;
+}
+```
+
+**Returns**:
+
+```typescript
+interface AnalysisResult {
+  summary: string;
+  mainProblems: Array<{
+    id: string;
+    severity: "low" | "medium" | "high" | "critical";
+    evidence: string[];
+    hypothesis: string;
+    recommendedAction: string;
+    affectedArea: string;
+  }>;
+  confidence: number;
+}
+```
+
+---
+
+#### evolve()
+
+Generate code changes to fix identified problems.
+
+```typescript
+const result = await analyst.evolve(analysis, onStream?);
+```
+
+**Parameters**:
+- `analysis`: AnalysisResult from `analyze()`
+- `onStream`: Optional callback for streaming output
+
+```typescript
+type StreamCallback = (data: string, type: 'stdout' | 'stderr') => void;
+```
+
+**Returns**:
+
+```typescript
+interface EvolutionResult {
+  stdout: string;    // Command output
+  stderr: string;    // Error output
+  changes: Array<{   // Parsed changes
+    id: string;
+    component: string;
+    description: string;
+    type: "added" | "modified" | "removed";
+    file: string;
+    explanation: string;
+  }>;
+}
+```
+
+## Full Evolution Pipeline
+
+```typescript
+import { BrowserAgent } from "darwin-ui/core/browser-agent";
+import { Analyst } from "darwin-ui/core/analyst";
+import { AnalyticsSnapshot } from "darwin-ui/helpers/analytic-types";
+import * as fs from "fs";
+import * as path from "path";
+
+async function runEvolutionPipeline() {
+  const targetAppPath = path.resolve(__dirname, "../my-app");
+  const eventsFile = path.join(targetAppPath, "events.json");
+
+  // Clear previous events
+  fs.writeFileSync(eventsFile, "[]", "utf-8");
+  console.log("Events cleared");
+
+  // Step 1: Run browser agent
+  console.log("Step 1: Running browser agent...");
+  const agent = new BrowserAgent({
+    website: "http://localhost:3000",
+    task: "Complete the signup flow",
+    model: "google/gemini-3-flash-preview",
+    maxSteps: 30
+  });
+
+  let thoughts = [];
+  try {
+    await agent.init();
+    const result = await agent.execute();
+    thoughts = result.thoughts;
+    console.log(`Agent completed with ${thoughts.length} thoughts`);
+  } finally {
+    await agent.close();
+  }
+
+  // Step 2: Load analytics
+  console.log("Step 2: Loading analytics...");
+  let analyticsSnapshot: AnalyticsSnapshot = { events: [] };
+  
+  if (fs.existsSync(eventsFile)) {
+    const eventsContent = fs.readFileSync(eventsFile, "utf-8");
+    const events = JSON.parse(eventsContent);
+    analyticsSnapshot = { events: Array.isArray(events) ? events : [] };
+    console.log(`Loaded ${analyticsSnapshot.events.length} events`);
+  }
+
+  // Step 3: Analyze
+  console.log("Step 3: Analyzing...");
+  const analyst = new Analyst(targetAppPath);
+  const analysis = await analyst.analyze(analyticsSnapshot, thoughts);
+  
+  console.log(`Analysis complete: ${analysis.mainProblems.length} issues found`);
+  console.log(`Summary: ${analysis.summary}`);
+  
+  analysis.mainProblems.forEach((problem, i) => {
+    console.log(`${i + 1}. [${problem.severity}] ${problem.hypothesis}`);
+  });
+
+  // Step 4: Evolve
+  if (analysis.mainProblems.length > 0) {
+    console.log("Step 4: Evolving codebase...");
+    const evolutionResult = await analyst.evolve(analysis, (data, type) => {
+      if (type === 'stdout') {
+        process.stdout.write(data);
+      } else {
+        process.stderr.write(data);
+      }
+    });
+    
+    console.log("\nEvolution complete!");
+    if (evolutionResult.changes.length > 0) {
+      console.log(`Generated ${evolutionResult.changes.length} changes:`);
+      evolutionResult.changes.forEach(change => {
+        console.log(`- ${change.type}: ${change.file}`);
+        console.log(`  ${change.description}`);
+      });
+    }
+  } else {
+    console.log("No issues found, skipping evolution");
+  }
+}
+
+runEvolutionPipeline().catch(console.error);
+```
+
+## Configuration Management
+
+```typescript
+import { 
+  loadConfig, 
+  saveConfig, 
+  createDefaultConfig,
+  toBrowserAgentConfig,
+  type DarwinConfig 
+} from "darwin-ui/core/config";
+
+// Load existing config
+const config = loadConfig("./darwin.config.json");
+
+// Modify it
+config.maxSteps = 50;
+config.verbose = 2;
+
+// Save it
+saveConfig(config, "./darwin.config.json");
+
+// Create default config
+createDefaultConfig("./new-config.json");
+
+// Convert to BrowserAgent format
+const agentConfig = toBrowserAgentConfig(config);
+const agent = new BrowserAgent(agentConfig);
+```
+
+## Integration with Express
+
+Create an HTTP API for your automation:
+
+```typescript
+import express from "express";
+import { BrowserAgent } from "darwin-ui/core/browser-agent";
+
+const app = express();
+app.use(express.json());
+
+app.post("/api/run-task", async (req, res) => {
+  const { website, task, maxSteps } = req.body;
+
+  const agent = new BrowserAgent({
+    website,
+    task,
+    maxSteps: maxSteps || 20,
+    onEvent: (type, data) => {
+      // Stream events to client via SSE or websockets
+      console.log(`Event: ${type}`, data);
+    }
+  });
+
+  try {
+    await agent.init();
+    const result = await agent.execute();
+    
+    res.json({
+      success: true,
+      thoughts: result.thoughts,
+      steps: result.steps
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  } finally {
+    await agent.close();
+  }
+});
+
+app.listen(3002, () => {
+  console.log("Server running on port 3002");
+});
+```
+
+## Testing
+
+```typescript
+import { BrowserAgent } from "darwin-ui/core/browser-agent";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+
+describe("BrowserAgent", () => {
+  let agent: BrowserAgent;
+
+  beforeEach(() => {
+    agent = new BrowserAgent({
+      website: "https://example.com",
+      task: "Find the contact page",
+      maxSteps: 10,
+      verbose: 0  // Silent in tests
+    });
+  });
+
+  afterEach(async () => {
+    if (agent) {
+      await agent.close();
+    }
+  });
+
+  it("should execute a simple task", async () => {
+    await agent.init();
+    const result = await agent.execute();
+    
+    expect(result.thoughts).toBeDefined();
+    expect(result.thoughts.length).toBeGreaterThan(0);
+    expect(result.steps).toBeGreaterThan(0);
+  });
+
+  it("should capture reasoning", async () => {
+    await agent.init();
+    const result = await agent.execute();
+    
+    const hasThoughts = result.thoughts.some(t => t.text.length > 0);
+    expect(hasThoughts).toBe(true);
+  });
+});
+```
+
+## Error Handling
+
+```typescript
+import { BrowserAgent } from "darwin-ui/core/browser-agent";
+
+async function robustExecution() {
+  const agent = new BrowserAgent({
+    website: "https://example.com",
+    task: "Test task"
+  });
+
+  try {
+    await agent.init();
+    const result = await agent.execute();
+    return result;
+  } catch (error: any) {
+    if (error.message.includes("API key")) {
+      console.error("Missing or invalid API key");
+    } else if (error.message.includes("timeout")) {
+      console.error("Task took too long");
+    } else if (error.message.includes("not found")) {
+      console.error("Config file not found");
+    } else {
+      console.error("Unknown error:", error.message);
+    }
+    throw error;
+  } finally {
+    await agent.close();
+  }
+}
+```
+
+## TypeScript Types
+
+Darwin exports all types for full type safety:
+
+```typescript
+import type {
+  BrowserAgentConfig,
+  ThoughtEntry,
+  DarwinConfig
+} from "darwin-ui/core/browser-agent";
+
+import type {
+  AnalyticsSnapshot,
+  AnalysisResult
+} from "darwin-ui/helpers/analytic-types";
+
+const config: BrowserAgentConfig = {
+  website: "https://example.com",
+  task: "Test",
+  onEvent: (type, data) => {
+    // Type-safe event handling
+  }
+};
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="API Server" icon="server" href="/guides/api-server">
+    Run Darwin as an HTTP service
+  </Card>
+  <Card title="Browser Agent" icon="robot" href="/concepts/browser-agent">
+    Deep dive into BrowserAgent internals
+  </Card>
+  <Card title="API Reference" icon="book" href="/api/browser-agent">
+    Complete API documentation
+  </Card>
+  <Card title="Examples" icon="lightbulb" href="/examples/custom-workflows">
+    See advanced usage patterns
+  </Card>
+</CardGroup>

@@ -1,0 +1,106 @@
+---
+title: Introduction to Darwin
+description: An AI-powered browser automation framework that evolves itself through user analytics
+---
+
+## What is Darwin?
+
+Darwin is an intelligent browser automation framework that goes beyond traditional automation. Built on top of Stagehand V3, it creates browser agents that think like humans, navigate websites naturally, and most importantly — **learn from user behavior to improve itself**.
+
+<CardGroup cols={2}>
+  <Card title="Observe" icon="eye">
+    Watch real users interact with your application while tracking analytics and user thoughts
+  </Card>
+  <Card title="Analyze" icon="chart-line">
+    AI analyzes user behavior patterns to identify UX issues and friction points
+  </Card>
+  <Card title="Evolve" icon="dna">
+    Automatically generate code changes to fix identified problems
+  </Card>
+  <Card title="Iterate" icon="rotate">
+    Continuously improve through repeated cycles of observation and evolution
+  </Card>
+</CardGroup>
+
+## Key Features
+
+### Hybrid Browser Automation
+
+Darwin combines DOM-based and coordinate-based actions for more reliable automation:
+
+- **Visible cursor movement** - See the agent navigate in real-time
+- **Human-like behavior** - Natural scrolling and delays
+- **Headful browser** - Watch every step of the automation
+- **Continuous reasoning** - Track the agent's thought process
+
+### Evolution Pipeline
+
+The core innovation of Darwin is its self-improving loop:
+
+1. **Browser Agent** executes tasks and captures user thoughts
+2. **Analytics Tracking** monitors every interaction and event
+3. **AI Analyst** identifies patterns and problems
+4. **Code Evolution** generates fixes automatically
+
+### Real-time Monitoring
+
+- **Dashboard UI** for managing and monitoring agents
+- **Live streaming** of agent thoughts and actions
+- **Session history** with detailed logs
+- **Analytics overlays** showing captured events
+
+## Why Darwin?
+
+<Note>
+Traditional browser automation tools just follow scripts. Darwin **thinks, observes, and learns**.
+</Note>
+
+Darwin is ideal for:
+
+- **Product teams** wanting to understand user friction
+- **QA engineers** automating complex user flows
+- **UX researchers** analyzing interaction patterns
+- **Developers** who want automated UI improvements
+
+## How It Works
+
+At its core, Darwin uses AI models (Google Gemini, Anthropic Claude, or OpenAI) to:
+
+1. **Reason** about web pages before taking actions
+2. **Track** user thoughts and analytics events
+3. **Analyze** patterns across multiple sessions
+4. **Generate** code changes to fix issues
+
+<CodeGroup>
+```json darwin.config.json
+{
+  "website": "https://example.com",
+  "task": "Sign up for an account and complete onboarding",
+  "model": "google/gemini-3-flash-preview",
+  "maxSteps": 20
+}
+```
+
+```bash CLI
+npx darwin run
+```
+</CodeGroup>
+
+The agent will open a browser, navigate your site, and provide detailed thoughts about every action it takes.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Get your first automation running in 5 minutes
+  </Card>
+  <Card title="Installation" icon="download" href="/installation">
+    Install Darwin and configure your environment
+  </Card>
+  <Card title="Architecture" icon="diagram-project" href="/concepts/architecture">
+    Learn how Darwin's components work together
+  </Card>
+  <Card title="CLI Usage" icon="terminal" href="/guides/cli-usage">
+    Explore all available commands
+  </Card>
+</CardGroup>

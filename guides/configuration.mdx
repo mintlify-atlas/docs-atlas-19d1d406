@@ -1,0 +1,526 @@
+---
+title: Configuration
+description: Complete reference for darwin.config.json and all configuration options
+---
+
+## Configuration File
+
+Darwin uses a JSON configuration file (`darwin.config.json`) to define agent behavior.
+
+### Creating a Config File
+
+```bash
+npx darwin init
+```
+
+This creates a default `darwin.config.json` in your current directory.
+
+## Configuration Schema
+
+```typescript
+interface DarwinConfig {
+  website: string;           // Target URL (required)
+  task: string;              // Task description (required)
+  model?: string;            // AI model to use
+  maxSteps?: number;         // Maximum action steps
+  env?: "LOCAL" | "BROWSERBASE";  // Execution environment
+  apiKey?: string;           // Browserbase API key
+  projectId?: string;        // Browserbase project ID
+  verbose?: 0 | 1 | 2;       // Logging verbosity
+  systemPrompt?: string;     // Custom system prompt
+  thinkingFormat?: string;   // Custom thinking format (deprecated)
+}
+```
+
+## Required Fields
+
+### website
+
+**Type**: `string`
+
+**Description**: The URL to navigate to
+
+**Examples**:
+
+```json
+{
+  "website": "https://example.com"
+}
+```
+
+```json
+{
+  "website": "http://localhost:3000"
+}
+```
+
+<Warning>
+Make sure the website is accessible before running the agent.
+</Warning>
+
+### task
+
+**Type**: `string`
+
+**Description**: Natural language description of what the agent should do
+
+**Best Practices**:
+
+<Tip>
+Be specific and concrete:
+
+**Good**: "Sign up for an account using test@example.com, then navigate to the settings page"
+
+**Bad**: "Test the website"
+</Tip>
+
+**Examples**:
+
+```json
+{
+  "task": "Click the sign up button and fill out the registration form"
+}
+```
+
+```json
+{
+  "task": "Add 3 items to the shopping cart and proceed to checkout"
+}
+```
+
+```json
+{
+  "task": "Find the pricing page and compare the Pro vs Enterprise plans"
+}
+```
+
+## Optional Fields
+
+### model
+
+**Type**: `string`
+
+**Default**: `"google/gemini-3-flash-preview"`
+
+**Description**: The AI model to use for reasoning and actions
+
+**Supported Models**:
+
+<Tabs>
+  <Tab title="Google (Recommended)">
+    ```json
+    {
+      "model": "google/gemini-3-flash-preview"
+    }
+    ```
+
+    **Best for**: Speed and cost-effectiveness
+
+    **Requires**: `GOOGLE_GENERATIVE_AI_API_KEY` or `GEMINI_API_KEY`
+  </Tab>
+
+  <Tab title="Anthropic">
+    ```json
+    {
+      "model": "anthropic/claude-sonnet-4-5-20250929"
+    }
+    ```
+
+    Or:
+
+    ```json
+    {
+      "model": "anthropic/claude-haiku-4-5-20251001"
+    }
+    ```
+
+    **Best for**: Complex reasoning tasks
+
+    **Requires**: `ANTHROPIC_API_KEY`
+  </Tab>
+
+  <Tab title="OpenAI">
+    ```json
+    {
+      "model": "openai/gpt-4o"
+    }
+    ```
+
+    **Best for**: General purpose
+
+    **Requires**: `OPENAI_API_KEY`
+  </Tab>
+</Tabs>
+
+See the [Models Guide](/guides/models) for detailed comparisons.
+
+### maxSteps
+
+**Type**: `number`
+
+**Default**: `20`
+
+**Description**: Maximum number of actions the agent can take
+
+**Examples**:
+
+```json
+{
+  "maxSteps": 10  // For simple tasks
+}
+```
+
+```json
+{
+  "maxSteps": 50  // For complex multi-page flows
+}
+```
+
+<Info>
+If the agent reaches `maxSteps`, it will stop even if the task isn't complete. Increase this for complex tasks.
+</Info>
+
+### env
+
+**Type**: `"LOCAL"` | `"BROWSERBASE"`
+
+**Default**: `"LOCAL"`
+
+**Description**: Where to run the browser
+
+<Tabs>
+  <Tab title="LOCAL">
+    **Runs browser on your machine**
+
+    ```json
+    {
+      "env": "LOCAL"
+    }
+    ```
+
+    **Pros**:
+    - See the browser window
+    - Visual overlays enabled
+    - No external dependencies
+
+    **Cons**:
+    - Requires Chrome/Chromium
+    - Can't run in CI without display
+  </Tab>
+
+  <Tab title="BROWSERBASE">
+    **Runs browser in the cloud**
+
+    ```json
+    {
+      "env": "BROWSERBASE",
+      "apiKey": "your_browserbase_api_key",
+      "projectId": "your_project_id"
+    }
+    ```
+
+    **Pros**:
+    - No local browser needed
+    - Scales to many concurrent sessions
+    - Works in CI/CD
+
+    **Cons**:
+    - Can't see the browser
+    - No visual overlays
+    - Requires Browserbase account
+  </Tab>
+</Tabs>
+
+### apiKey & projectId
+
+**Type**: `string`
+
+**Required when**: `env: "BROWSERBASE"`
+
+**Description**: Browserbase credentials
+
+```json
+{
+  "env": "BROWSERBASE",
+  "apiKey": "bb_api_...",
+  "projectId": "prj_..."
+}
+```
+
+<Note>
+You can also set these as environment variables:
+- `BROWSERBASE_API_KEY`
+- `BROWSERBASE_PROJECT_ID`
+</Note>
+
+### verbose
+
+**Type**: `0` | `1` | `2`
+
+**Default**: `1`
+
+**Description**: Logging verbosity level
+
+| Level | Name | Output |
+|-------|------|--------|
+| 0 | Silent | Errors only |
+| 1 | Info | Standard output (default) |
+| 2 | Debug | Detailed logs and reasoning |
+
+**Examples**:
+
+```json
+{
+  "verbose": 0  // Quiet mode
+}
+```
+
+```json
+{
+  "verbose": 2  // Debug mode
+}
+```
+
+### systemPrompt
+
+**Type**: `string`
+
+**Default**: Darwin's built-in thinking prompt
+
+**Description**: Override the system prompt sent to the AI model
+
+**Default Prompt**:
+
+```typescript
+const defaultSystemPrompt = `<role>
+You are simulating a human who is specialized in web interaction.
+</role>
+
+<workflow>
+Before taking any action, you MUST use the 'think' tool to explain:
+1. What you're observing on the page
+2. What you're trying to accomplish
+3. Why you're choosing this specific action
+4. What you expect to happen
+</workflow>
+
+<thinking_format>
+- Keep thinking concise (1-2 sentences max)
+- Point out anything unexpected
+- Critique the UI and make suggestions
+</thinking_format>
+
+<rules>
+- Always use 'think' tool before actions
+- NEVER USE ariaTree tool
+- Write in full English
+- Act like a HUMAN, not an agent
+</rules>`;
+```
+
+**Custom Example**:
+
+```json
+{
+  "systemPrompt": "You are a QA tester. Before each action, explain what you're testing and what you expect. Be critical of any usability issues."
+}
+```
+
+<Warning>
+Custom system prompts should still encourage the agent to use the `think` tool, otherwise thought capture won't work properly.
+</Warning>
+
+## Complete Example
+
+```json darwin.config.json
+{
+  "website": "http://localhost:3000",
+  "task": "Sign up for an account using test@example.com, complete the onboarding, and add an item to favorites",
+  "model": "google/gemini-3-flash-preview",
+  "maxSteps": 30,
+  "env": "LOCAL",
+  "verbose": 2,
+  "systemPrompt": "You are a UX researcher. Think out loud about every interaction and provide detailed feedback on the user experience."
+}
+```
+
+## Environment Variables
+
+Configuration can also come from environment variables:
+
+### AI Model Keys
+
+```bash .env
+# Google Gemini (recommended)
+GOOGLE_GENERATIVE_AI_API_KEY=your_key_here
+# OR
+GEMINI_API_KEY=your_key_here
+
+# Anthropic Claude
+ANTHROPIC_API_KEY=your_key_here
+
+# OpenAI
+OPENAI_API_KEY=your_key_here
+```
+
+### Browserbase
+
+```bash .env
+BROWSERBASE_API_KEY=your_key_here
+BROWSERBASE_PROJECT_ID=your_project_id_here
+```
+
+## CLI Overrides
+
+You can override config values from the command line:
+
+```bash
+# Override website
+npx darwin run --website "https://different-site.com"
+
+# Override task
+npx darwin run --task "Find the contact page"
+
+# Override model
+npx darwin run --model "anthropic/claude-sonnet-4-5-20250929"
+
+# Override max steps
+npx darwin run --steps 50
+
+# Override environment
+npx darwin run --env BROWSERBASE
+
+# Multiple overrides
+npx darwin run \
+  --website "http://localhost:3000" \
+  --task "Test checkout flow" \
+  --steps 30
+```
+
+## Managing Configs
+
+### Create
+
+```bash
+npx darwin init
+npx darwin init --config custom.config.json
+```
+
+### View
+
+```bash
+cat darwin.config.json
+```
+
+Or via API:
+
+```bash
+curl http://localhost:3002/api/config
+```
+
+### Update
+
+```bash
+npx darwin config --set-website "https://new-site.com"
+npx darwin config --set-task "New task"
+npx darwin config --set-model "google/gemini-3-flash-preview"
+npx darwin config --set-steps 25
+```
+
+Or edit the file directly:
+
+```bash
+vim darwin.config.json
+```
+
+### Multiple Configs
+
+Use different config files for different scenarios:
+
+```bash
+# Create configs
+npx darwin init --config signup.config.json
+npx darwin init --config checkout.config.json
+
+# Use specific config
+npx darwin run --config signup.config.json
+npx darwin run --config checkout.config.json
+```
+
+## Programmatic Configuration
+
+When using Darwin in code:
+
+```typescript
+import { BrowserAgent } from "./core/browser-agent";
+
+const agent = new BrowserAgent({
+  website: "https://example.com",
+  task: "Find the contact page",
+  model: "google/gemini-3-flash-preview",
+  maxSteps: 20,
+  env: "LOCAL",
+  verbose: 2,
+  systemPrompt: "Custom prompt here",
+  onEvent: (type, data) => {
+    console.log(`Event: ${type}`, data);
+  }
+});
+
+await agent.init();
+const result = await agent.execute();
+await agent.close();
+```
+
+## Validation
+
+Darwin validates your config on load:
+
+```typescript
+// Missing required fields
+{
+  "model": "google/gemini-3-flash-preview"
+}
+// Error: Config must include 'website' field
+// Error: Config must include 'task' field
+
+// Invalid JSON
+{
+  "website": "https://example.com",  // trailing comma
+}
+// Error: Invalid JSON in config file
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Version Control" icon="code-branch">
+    Commit your config files to track task definitions over time
+  </Card>
+  <Card title="Environment-Specific" icon="layer-group">
+    Use different configs for local vs production testing
+  </Card>
+  <Card title="Descriptive Tasks" icon="message">
+    Write clear, specific task descriptions for better results
+  </Card>
+  <Card title="Tune MaxSteps" icon="sliders">
+    Start with 20, increase for complex flows, decrease for simple tasks
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="CLI Usage" icon="terminal" href="/guides/cli-usage">
+    Learn all CLI commands
+  </Card>
+  <Card title="Models" icon="brain" href="/guides/models">
+    Choose the right AI model
+  </Card>
+  <Card title="Programmatic Usage" icon="code" href="/guides/programmatic-usage">
+    Use config in your code
+  </Card>
+  <Card title="API Server" icon="server" href="/guides/api-server">
+    Configure via HTTP API
+  </Card>
+</CardGroup>

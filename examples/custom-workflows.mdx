@@ -1,0 +1,653 @@
+---
+title: 'Custom Workflows'
+description: 'Build advanced automation workflows by combining Darwin features'
+icon: 'diagram-project'
+---
+
+## Overview
+
+Learn how to create sophisticated automation workflows by combining multiple Darwin tasks, integrating with external tools, and using advanced configuration options.
+
+## Multi-Task Workflows
+
+### Sequential Task Execution
+
+Chain multiple browser automation tasks together:
+
+```typescript
+import { BrowserAgent } from '@darwin/sdk';
+
+interface WorkflowStep {
+  name: string;
+  website: string;
+  task: string;
+  maxSteps: number;
+}
+
+async function runWorkflow(steps: WorkflowStep[]) {
+  const results = [];
+  
+  for (const [index, step] of steps.entries()) {
+    console.log(`\n=== Step ${index + 1}: ${step.name} ===`);
+    
+    const agent = new BrowserAgent({
+      website: step.website,
+      task: step.task,
+      maxSteps: step.maxSteps,
+      model: 'google/gemini-3-flash-preview',
+      env: 'LOCAL',
+      verbose: 1,
+    });
+    
+    await agent.init();
+    
+    try {
+      const result = await agent.execute();
+      results.push({
+        step: step.name,
+        success: result.result.success,
+        thoughts: result.thoughts,
+        steps: result.steps,
+      });
+      
+      console.log(`✓ ${step.name} completed in ${result.steps} steps`);
+    } catch (error) {
+      console.error(`✗ ${step.name} failed:`, error);
+      results.push({
+        step: step.name,
+        success: false,
+        error: error.message,
+      });
+      break; // Stop workflow on error
+    } finally {
+      await agent.close();
+    }
+  }
+  
+  return results;
+}
+
+// Define a multi-step workflow
+const ecommerceWorkflow: WorkflowStep[] = [
+  {
+    name: 'Product Search',
+    website: 'http://localhost:3000',
+    task: 'Search for "laptop" and find a product under $1000',
+    maxSteps: 20,
+  },
+  {
+    name: 'Add to Cart',
+    website: 'http://localhost:3000/products/123',
+    task: 'Add the product to cart and verify it appears in the cart',
+    maxSteps: 15,
+  },
+  {
+    name: 'Checkout',
+    website: 'http://localhost:3000/cart',
+    task: 'Complete the checkout process with test credit card',
+    maxSteps: 30,
+  },
+];
+
+// Run the workflow
+const results = await runWorkflow(ecommerceWorkflow);
+
+// Analyze results
+const allSuccessful = results.every(r => r.success);
+console.log(`\nWorkflow ${allSuccessful ? 'completed' : 'failed'}`);
+```
+
+### Parallel Task Execution
+
+Run multiple independent tasks simultaneously:
+
+```typescript
+async function runParallelTasks(tasks: WorkflowStep[]) {
+  const promises = tasks.map(async (task) => {
+    const agent = new BrowserAgent({
+      website: task.website,
+      task: task.task,
+      maxSteps: task.maxSteps,
+      model: 'google/gemini-3-flash-preview',
+      env: 'BROWSERBASE', // Use BROWSERBASE for parallel execution
+    });
+    
+    await agent.init();
+    
+    try {
+      const result = await agent.execute();
+      return {
+        name: task.name,
+        success: true,
+        result,
+      };
+    } finally {
+      await agent.close();
+    }
+  });
+  
+  return await Promise.all(promises);
+}
+
+// Run multiple tests in parallel
+const parallelTests = [
+  {
+    name: 'Homepage Load Test',
+    website: 'http://localhost:3000',
+    task: 'Navigate the homepage and verify all sections load',
+    maxSteps: 10,
+  },
+  {
+    name: 'Search Functionality Test',
+    website: 'http://localhost:3000',
+    task: 'Test the search feature with various queries',
+    maxSteps: 20,
+  },
+  {
+    name: 'Login Flow Test',
+    website: 'http://localhost:3000',
+    task: 'Test the login flow with valid credentials',
+    maxSteps: 15,
+  },
+];
+
+const results = await runParallelTasks(parallelTests);
+```
+
+## Custom System Prompts
+
+### Task-Specific Behavior
+
+Customize the agent's behavior for specific use cases:
+
+```typescript
+// E-commerce testing persona
+const ecommerceAgent = new BrowserAgent({
+  website: 'http://localhost:3000',
+  task: 'Browse products and complete a purchase',
+  systemPrompt: `You are an experienced online shopper testing an e-commerce site.
+  
+  Focus on:
+  - Product discovery and search
+  - Price visibility and comparison
+  - Add to cart functionality
+  - Checkout flow clarity
+  
+  Be critical of:
+  - Unclear pricing or shipping costs
+  - Confusing navigation
+  - Slow loading times
+  - Hard-to-find CTAs
+  
+  Think out loud about your expectations vs reality.`,
+  maxSteps: 50,
+});
+
+// Accessibility-focused testing
+const accessibilityAgent = new BrowserAgent({
+  website: 'http://localhost:3000',
+  task: 'Navigate the site and test key user flows',
+  systemPrompt: `You are testing web accessibility and usability.
+  
+  Pay special attention to:
+  - Button and link labels
+  - Form field labels and validation messages
+  - Color contrast and readability
+  - Keyboard navigation
+  - Error message clarity
+  
+  Critique anything that would confuse users or violate accessibility best practices.`,
+  maxSteps: 40,
+});
+
+// Mobile UX persona
+const mobileAgent = new BrowserAgent({
+  website: 'http://localhost:3000',
+  task: 'Test the mobile user experience',
+  systemPrompt: `You are a mobile user testing this site on a phone.
+  
+  Evaluate:
+  - Touch target sizes
+  - Responsive layout
+  - Mobile-specific UI patterns
+  - Scrolling and navigation
+  
+  Assume you're on-the-go with limited attention span.`,
+  maxSteps: 30,
+});
+```
+
+### Domain-Specific Agents
+
+```typescript
+interface AgentPersona {
+  name: string;
+  systemPrompt: string;
+  focusAreas: string[];
+}
+
+const personas: Record<string, AgentPersona> = {
+  shopper: {
+    name: 'Online Shopper',
+    systemPrompt: 'You are a typical online shopper looking for good deals...',
+    focusAreas: ['pricing', 'product-info', 'checkout'],
+  },
+  developer: {
+    name: 'Technical User',
+    systemPrompt: 'You are a developer evaluating the site technically...',
+    focusAreas: ['performance', 'functionality', 'errors'],
+  },
+  senior: {
+    name: 'Senior User',
+    systemPrompt: 'You are a senior citizen less familiar with technology...',
+    focusAreas: ['simplicity', 'clarity', 'accessibility'],
+  },
+};
+
+async function testWithPersona(personaName: string, task: string) {
+  const persona = personas[personaName];
+  
+  const agent = new BrowserAgent({
+    website: 'http://localhost:3000',
+    task,
+    systemPrompt: persona.systemPrompt,
+    maxSteps: 40,
+  });
+  
+  await agent.init();
+  try {
+    const result = await agent.execute();
+    return {
+      persona: persona.name,
+      result,
+    };
+  } finally {
+    await agent.close();
+  }
+}
+```
+
+## Integration with External Tools
+
+### Webhook Notifications
+
+Send results to external services:
+
+```typescript
+import fetch from 'node-fetch';
+
+async function runWithWebhook(config: any, webhookUrl: string) {
+  const agent = new BrowserAgent(config);
+  await agent.init();
+  
+  try {
+    const result = await agent.execute();
+    
+    // Send results to webhook
+    await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        timestamp: new Date().toISOString(),
+        task: config.task,
+        success: result.result.success,
+        steps: result.steps,
+        thoughts: result.thoughts,
+      }),
+    });
+    
+    return result;
+  } finally {
+    await agent.close();
+  }
+}
+```
+
+### Slack Integration
+
+```typescript
+import { WebClient } from '@slack/web-api';
+
+const slack = new WebClient(process.env.SLACK_TOKEN);
+
+async function runWithSlackNotification(config: any, channel: string) {
+  const agent = new BrowserAgent(config);
+  await agent.init();
+  
+  try {
+    const startTime = Date.now();
+    const result = await agent.execute();
+    const duration = Date.now() - startTime;
+    
+    // Post to Slack
+    await slack.chat.postMessage({
+      channel,
+      text: `Darwin Task Completed`,
+      blocks: [
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `*Task:* ${config.task}\n*Status:* ${result.result.success ? '✅ Success' : '❌ Failed'}\n*Duration:* ${duration}ms\n*Steps:* ${result.steps}`,
+          },
+        },
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `*Key Thoughts:*\n${result.thoughts.slice(0, 3).map(t => `• ${t.text}`).join('\n')}`,
+          },
+        },
+      ],
+    });
+    
+    return result;
+  } finally {
+    await agent.close();
+  }
+}
+```
+
+### Database Logging
+
+```typescript
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+async function runWithDatabaseLogging(config: any) {
+  const agent = new BrowserAgent(config);
+  await agent.init();
+  
+  // Create run record
+  const run = await prisma.automationRun.create({
+    data: {
+      website: config.website,
+      task: config.task,
+      startedAt: new Date(),
+      status: 'running',
+    },
+  });
+  
+  try {
+    const result = await agent.execute();
+    
+    // Update run record
+    await prisma.automationRun.update({
+      where: { id: run.id },
+      data: {
+        status: result.result.success ? 'success' : 'failed',
+        completedAt: new Date(),
+        steps: result.steps,
+        thoughts: {
+          create: result.thoughts.map(thought => ({
+            step: thought.step,
+            text: thought.text,
+            timestamp: new Date(thought.timestamp),
+            source: thought.source,
+          })),
+        },
+      },
+    });
+    
+    return result;
+  } catch (error) {
+    await prisma.automationRun.update({
+      where: { id: run.id },
+      data: {
+        status: 'error',
+        error: error.message,
+        completedAt: new Date(),
+      },
+    });
+    throw error;
+  } finally {
+    await agent.close();
+  }
+}
+```
+
+## MCP Integration
+
+### Adding MCP Tools
+
+Extend Darwin with Model Context Protocol integrations:
+
+```typescript
+import { BrowserAgent } from '@darwin/sdk';
+
+const agent = new BrowserAgent({
+  website: 'https://example.com',
+  task: 'Research the company and find recent news',
+  integrations: [
+    // Add Exa search integration
+    `https://mcp.exa.ai/mcp?exaApiKey=${process.env.EXA_API_KEY}`,
+  ],
+  maxSteps: 30,
+});
+
+await agent.init();
+const result = await agent.execute();
+await agent.close();
+```
+
+### Custom MCP Servers
+
+```typescript
+// Use a custom MCP server for specialized tools
+const agent = new BrowserAgent({
+  website: 'https://example.com',
+  task: 'Analyze the page content',
+  integrations: [
+    'http://localhost:3003/mcp', // Your custom MCP server
+  ],
+  maxSteps: 20,
+});
+```
+
+## Event-Driven Workflows
+
+### Real-Time Event Handling
+
+```typescript
+import { BrowserAgent } from '@darwin/sdk';
+import EventEmitter from 'events';
+
+class WorkflowOrchestrator extends EventEmitter {
+  async runTask(config: any) {
+    const agent = new BrowserAgent({
+      ...config,
+      onEvent: (type, data) => {
+        // Emit events for external listeners
+        this.emit(`agent:${type}`, data);
+      },
+    });
+    
+    await agent.init();
+    
+    try {
+      const result = await agent.execute();
+      this.emit('task:complete', { config, result });
+      return result;
+    } catch (error) {
+      this.emit('task:error', { config, error });
+      throw error;
+    } finally {
+      await agent.close();
+    }
+  }
+}
+
+const orchestrator = new WorkflowOrchestrator();
+
+// Listen to events
+orchestrator.on('agent:think', (data) => {
+  console.log('💭 Agent thinking:', data);
+});
+
+orchestrator.on('agent:action', (data) => {
+  console.log('🔧 Agent action:', data.toolName);
+});
+
+orchestrator.on('task:complete', ({ config, result }) => {
+  console.log(`✓ Task "${config.task}" completed`);
+});
+
+orchestrator.on('task:error', ({ config, error }) => {
+  console.error(`✗ Task "${config.task}" failed:`, error.message);
+});
+
+// Run tasks
+await orchestrator.runTask({
+  website: 'http://localhost:3000',
+  task: 'Test the checkout flow',
+  maxSteps: 30,
+});
+```
+
+## Advanced Configuration
+
+### Dynamic Configuration
+
+```typescript
+interface DynamicConfig {
+  environment: 'development' | 'staging' | 'production';
+  userType: 'guest' | 'authenticated';
+  viewport: 'mobile' | 'tablet' | 'desktop';
+}
+
+function buildAgentConfig(params: DynamicConfig) {
+  const baseUrl = {
+    development: 'http://localhost:3000',
+    staging: 'https://staging.example.com',
+    production: 'https://example.com',
+  }[params.environment];
+  
+  const viewportSizes = {
+    mobile: { width: 375, height: 667 },
+    tablet: { width: 768, height: 1024 },
+    desktop: { width: 1920, height: 1080 },
+  };
+  
+  return {
+    website: baseUrl,
+    task: params.userType === 'guest' 
+      ? 'Browse products as a guest user'
+      : 'Browse products as a logged-in user',
+    viewport: viewportSizes[params.viewport],
+    maxSteps: 30,
+  };
+}
+
+// Use dynamic config
+const config = buildAgentConfig({
+  environment: 'staging',
+  userType: 'guest',
+  viewport: 'mobile',
+});
+
+const agent = new BrowserAgent(config);
+```
+
+### Environment-Based Configuration
+
+```typescript
+import { config } from 'dotenv';
+
+config(); // Load .env
+
+const agent = new BrowserAgent({
+  website: process.env.TEST_URL || 'http://localhost:3000',
+  task: process.env.TEST_TASK || 'Default test task',
+  model: process.env.DARWIN_MODEL || 'google/gemini-3-flash-preview',
+  maxSteps: parseInt(process.env.DARWIN_MAX_STEPS || '20'),
+  env: (process.env.DARWIN_ENV as 'LOCAL' | 'BROWSERBASE') || 'LOCAL',
+  verbose: parseInt(process.env.DARWIN_VERBOSE || '1') as 0 | 1 | 2,
+});
+```
+
+## Continuous Integration
+
+### GitHub Actions
+
+```yaml .github/workflows/darwin-tests.yml
+name: Darwin UX Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+      
+      - name: Install dependencies
+        run: npm install
+      
+      - name: Start demo app
+        run: |
+          cd packages/demo-app
+          npm run dev &
+          sleep 10
+      
+      - name: Run Darwin tests
+        env:
+          GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        run: |
+          cd packages/darwin-sdk
+          npm run test:darwin
+      
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: darwin-results
+          path: packages/darwin-sdk/results/
+```
+
+## Best Practices
+
+<Tip>
+**Modular Tasks**: Break complex workflows into smaller, reusable tasks.
+</Tip>
+
+<Tip>
+**Error Handling**: Always implement proper error handling and cleanup in workflows.
+</Tip>
+
+<Tip>
+**Event Logging**: Use the `onEvent` callback to log and monitor agent behavior in real-time.
+</Tip>
+
+<Tip>
+**Configuration Management**: Use environment variables and config files for flexible deployment.
+</Tip>
+
+<Tip>
+**Resource Cleanup**: Always call `agent.close()` in a `finally` block to prevent resource leaks.
+</Tip>
+
+<Warning>
+When running parallel tasks with BROWSERBASE, be mindful of rate limits and costs.
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="API Reference" icon="code" href="/api/browser-agent">
+    Explore the complete API documentation
+  </Card>
+  <Card title="CLI Reference" icon="terminal" href="/cli/run">
+    Learn all CLI commands and options
+  </Card>
+</CardGroup>

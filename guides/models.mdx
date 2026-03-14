@@ -1,0 +1,371 @@
+---
+title: AI Models
+description: Choose and configure the right AI model for your Darwin agents
+---
+
+## Overview
+
+Darwin supports multiple AI models through Stagehand V3. The model you choose affects speed, cost, and capability.
+
+<Info>
+Darwin uses hybrid mode (DOM + vision), which requires models that support both function calling and vision capabilities.
+</Info>
+
+## Supported Models
+
+### Google Gemini (Recommended)
+
+<Card title="google/gemini-3-flash-preview" icon="google">
+  **Best balance of speed, cost, and accuracy**
+
+  - **Speed**: Fast (~1-2s per step)
+  - **Cost**: Very low ($0.00001/token)
+  - **Accuracy**: High for most tasks
+  - **Context**: 1M tokens
+  
+  **Best for**: Production use, high-volume automation, rapid iteration
+</Card>
+
+**Setup**:
+
+```bash .env
+GOOGLE_GENERATIVE_AI_API_KEY=your_key_here
+# OR
+GEMINI_API_KEY=your_key_here
+```
+
+**Config**:
+
+```json
+{
+  "model": "google/gemini-3-flash-preview"
+}
+```
+
+**Get API Key**: [ai.google.dev](https://ai.google.dev)
+
+---
+
+### Anthropic Claude
+
+<CardGroup cols={2}>
+  <Card title="claude-sonnet-4-5" icon="anthropic">
+    **Most capable reasoning**
+
+    - **Speed**: Moderate (~2-4s)
+    - **Cost**: Moderate
+    - **Accuracy**: Excellent
+    - **Context**: 200K tokens
+    
+    **Best for**: Complex multi-step tasks
+  </Card>
+
+  <Card title="claude-haiku-4-5" icon="anthropic">
+    **Fast and efficient**
+
+    - **Speed**: Fast (~1-2s)
+    - **Cost**: Low
+    - **Accuracy**: Good
+    - **Context**: 200K tokens
+    
+    **Best for**: Simple tasks, quick tests
+  </Card>
+</CardGroup>
+
+**Setup**:
+
+```bash .env
+ANTHROPIC_API_KEY=your_key_here
+```
+
+**Config**:
+
+```json
+{
+  "model": "anthropic/claude-sonnet-4-5-20250929"
+}
+```
+
+Or:
+
+```json
+{
+  "model": "anthropic/claude-haiku-4-5-20251001"
+}
+```
+
+**Get API Key**: [console.anthropic.com](https://console.anthropic.com)
+
+---
+
+### OpenAI
+
+<Card title="openai/gpt-4o" icon="openai">
+  **General purpose**
+
+  - **Speed**: Moderate (~2-3s)
+  - **Cost**: Moderate-High
+  - **Accuracy**: Very good
+  - **Context**: 128K tokens
+  
+  **Best for**: General automation, familiar API
+</Card>
+
+**Setup**:
+
+```bash .env
+OPENAI_API_KEY=your_key_here
+```
+
+**Config**:
+
+```json
+{
+  "model": "openai/gpt-4o"
+}
+```
+
+**Get API Key**: [platform.openai.com](https://platform.openai.com)
+
+## Model Comparison
+
+| Model | Speed | Cost | Accuracy | Best For |
+|-------|-------|------|----------|----------|
+| Gemini Flash 3 | ⭐️⭐️⭐️ | 💵 | ⭐️⭐️⭐️ | Production, high volume |
+| Claude Sonnet 4.5 | ⭐️⭐️ | 💵💵 | ⭐️⭐️⭐️⭐️ | Complex reasoning |
+| Claude Haiku 4.5 | ⭐️⭐️⭐️ | 💵 | ⭐️⭐️ | Simple tasks |
+| GPT-4o | ⭐️⭐️ | 💵💵💵 | ⭐️⭐️⭐️ | General use |
+
+## Choosing a Model
+
+### For Development
+
+<Tip>
+Use **Gemini Flash 3** for fast iteration and low cost during development.
+</Tip>
+
+```json
+{
+  "model": "google/gemini-3-flash-preview",
+  "maxSteps": 10,
+  "verbose": 2
+}
+```
+
+### For Production
+
+<Tip>
+Use **Gemini Flash 3** for production workloads. It's fast enough for real-time use and cost-effective at scale.
+</Tip>
+
+```json
+{
+  "model": "google/gemini-3-flash-preview",
+  "maxSteps": 30,
+  "verbose": 1
+}
+```
+
+### For Complex Tasks
+
+<Tip>
+Use **Claude Sonnet 4.5** when you need superior reasoning for multi-step workflows with complex logic.
+</Tip>
+
+```json
+{
+  "model": "anthropic/claude-sonnet-4-5-20250929",
+  "maxSteps": 50,
+  "verbose": 2
+}
+```
+
+### For Cost Optimization
+
+<Tip>
+Use **Claude Haiku 4.5** for simple, well-defined tasks where you want to minimize cost.
+</Tip>
+
+```json
+{
+  "model": "anthropic/claude-haiku-4-5-20251001",
+  "maxSteps": 15
+}
+```
+
+## Performance Tips
+
+### Reduce Latency
+
+1. **Use Gemini Flash** - Fastest response times
+2. **Lower maxSteps** - Fewer API calls
+3. **Simplify tasks** - Clearer instructions = faster execution
+
+### Reduce Cost
+
+1. **Use Gemini** - Most cost-effective
+2. **Optimize prompts** - Shorter system prompts = lower cost
+3. **Set appropriate maxSteps** - Don't overshoot
+
+### Improve Accuracy
+
+1. **Use Claude Sonnet** for complex reasoning
+2. **Increase verbose** to see decision-making
+3. **Refine system prompts** for better guidance
+
+## Model-Specific Features
+
+### Gemini Features
+
+- **Ultra-low latency** - Sub-second responses
+- **Massive context** - 1M tokens (entire codebases)
+- **Streaming** - Real-time thought output
+- **Multimodal** - Vision + text combined
+
+### Claude Features
+
+- **Extended thinking** - Deep reasoning chains
+- **Code generation** - Excellent for evolution pipeline
+- **Nuanced understanding** - Better at complex UX patterns
+
+### OpenAI Features
+
+- **Familiar API** - Well-documented
+- **Broad support** - Many integrations
+- **Consistent** - Predictable behavior
+
+## Environment Variables
+
+Darwin automatically detects which model you're using and loads the appropriate API key:
+
+```bash .env
+# Google (supports both variable names)
+GOOGLE_GENERATIVE_AI_API_KEY=...
+GEMINI_API_KEY=...
+
+# Anthropic
+ANTHROPIC_API_KEY=...
+
+# OpenAI
+OPENAI_API_KEY=...
+```
+
+<Note>
+Stagehand handles API key loading automatically. You don't need to configure anything beyond setting environment variables.
+</Note>
+
+## Custom System Prompts
+
+Different models respond differently to prompts:
+
+### For Gemini
+
+```json
+{
+  "model": "google/gemini-3-flash-preview",
+  "systemPrompt": "You are a UX researcher testing web interfaces. Be concise and critical. Point out every usability issue you notice."
+}
+```
+
+### For Claude
+
+```json
+{
+  "model": "anthropic/claude-sonnet-4-5-20250929",
+  "systemPrompt": "You are a senior QA engineer. Think deeply about edge cases and potential failure modes. Provide detailed reasoning for each action."
+}
+```
+
+## Switching Models
+
+### Via Config
+
+```bash
+npx darwin config --set-model "anthropic/claude-haiku-4-5-20251001"
+```
+
+### Via CLI
+
+```bash
+npx darwin run --model "google/gemini-3-flash-preview"
+```
+
+### Via Code
+
+```typescript
+const agent = new BrowserAgent({
+  website: "https://example.com",
+  task: "Test task",
+  model: "anthropic/claude-sonnet-4-5-20250929"
+});
+```
+
+## Evolution Pipeline Models
+
+<Warning>
+The evolution pipeline uses **two different models**: one for analysis, one for code generation.
+</Warning>
+
+### Analysis Model
+
+Hardcoded to use **Gemini Flash 3**:
+
+```typescript
+// In analyst.ts
+const model = "gemini-3-flash-preview";
+const result = await this.analyst.models.generateContent({
+  model: model,
+  contents: userPrompt,
+  config: { systemInstruction: systemPrompt }
+});
+```
+
+### Code Generation Model
+
+Uses **Claude** via the `runClaude()` helper (Anthropic's coding agent).
+
+<Note>
+You cannot currently override these models. This is by design - Gemini excels at analysis, Claude excels at code generation.
+</Note>
+
+## Troubleshooting
+
+### "API key not found"
+
+- Check `.env` file exists in correct location
+- Verify variable name matches model:
+  - Gemini: `GOOGLE_GENERATIVE_AI_API_KEY` or `GEMINI_API_KEY`
+  - Claude: `ANTHROPIC_API_KEY`
+  - OpenAI: `OPENAI_API_KEY`
+- Restart terminal after editing `.env`
+
+### Slow responses
+
+- Switch to Gemini Flash for lower latency
+- Reduce `maxSteps` to limit API calls
+- Check your network connection
+- Verify API quota/rate limits
+
+### Inaccurate results
+
+- Try Claude Sonnet for better reasoning
+- Increase `verbose` to see thought process
+- Refine task description
+- Add custom system prompt
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/guides/configuration">
+    Learn all configuration options
+  </Card>
+  <Card title="Browser Agent" icon="robot" href="/concepts/browser-agent">
+    Understand how models control the agent
+  </Card>
+  <Card title="Performance" icon="gauge-high" href="/concepts/architecture">
+    Optimize model performance
+  </Card>
+  <Card title="CLI Usage" icon="terminal" href="/guides/cli-usage">
+    Override models via command line
+  </Card>
+</CardGroup>

@@ -1,80 +1,186 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quick Start
+description: Get your first Darwin automation running in 5 minutes
 ---
 
-## Get started in three steps
+## Prerequisites
 
-Get your documentation site running locally and make your first customization.
+<Info>
+Darwin requires Node.js 20 or higher. Check your version with `node --version`.
+</Info>
 
-### Step 1: Set up your local environment
+Before you begin, you'll need:
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+- Node.js 20+ installed
+- An API key for one of the supported models:
+  - Google Gemini API key (recommended)
+  - Anthropic API key
+  - OpenAI API key
 
-### Step 2: Deploy your changes
+## Installation
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+<Steps>
+  <Step title="Navigate to the darwin-sdk package">
+    ```bash
+    cd packages/darwin-sdk
+    ```
+  </Step>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+  <Step title="Install dependencies">
+    ```bash
+    npm install
+    ```
+  </Step>
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+  <Step title="Set up environment variables">
+    Create a `.env` file in `packages/darwin-sdk`:
 
-### Step 3: Go live
+    ```bash .env
+    # For Google models (recommended)
+    GOOGLE_GENERATIVE_AI_API_KEY=your_google_api_key_here
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+    # OR for Anthropic models
+    ANTHROPIC_API_KEY=your_anthropic_api_key_here
 
-## Next steps
+    # OR for OpenAI models
+    OPENAI_API_KEY=your_openai_api_key_here
+    ```
 
-Now that you have your docs running, explore these key features:
+    <Tip>
+    Get a free Google Gemini API key at [ai.google.dev](https://ai.google.dev)
+    </Tip>
+  </Step>
+</Steps>
+
+## Your First Automation
+
+<Steps>
+  <Step title="Initialize configuration">
+    ```bash
+    npm run dev init
+    ```
+
+    This creates a `darwin.config.json` file with default settings.
+  </Step>
+
+  <Step title="Edit the configuration">
+    Open `darwin.config.json` and customize it:
+
+    ```json darwin.config.json
+    {
+      "website": "https://example.com",
+      "task": "Click the sign up button and fill out the registration form",
+      "model": "google/gemini-3-flash-preview",
+      "maxSteps": 20,
+      "verbose": 2,
+      "env": "LOCAL"
+    }
+    ```
+
+    <Note>
+    The `task` field should describe what you want the agent to accomplish in natural language.
+    </Note>
+  </Step>
+
+  <Step title="Run the agent">
+    ```bash
+    npm run dev run
+    ```
+
+    A browser window will open and you'll see:
+    - The agent navigating your website
+    - A visible cursor showing where it's clicking
+    - Terminal output showing its reasoning
+    - Visual overlays for analytics events
+  </Step>
+</Steps>
+
+## What's Happening?
+
+When you run the agent, Darwin:
+
+1. **Opens a headful browser** - You can watch it work
+2. **Navigates to your website** - Loads the page you specified
+3. **Thinks before acting** - Uses AI to reason about the page
+4. **Takes actions** - Clicks, types, scrolls naturally
+5. **Tracks everything** - Captures analytics and thoughts
+
+### Terminal Output
+
+You'll see output like this:
+
+```bash
+Initializing Stagehand browser agent...
+Stagehand initialized successfully
+Navigating to: https://example.com
+Page loaded, starting task execution...
+
+💭 Thinking: I see a sign up button in the top right corner
+
+🔧 Action: click
+
+💭 Thinking: The form appeared, I need to fill in the email field
+
+🔧 Action: type
+
+✓ Task completed
+  Thoughts captured: 8
+```
+
+### Browser Visual Feedback
+
+The browser shows:
+
+- **Timer overlay** - Shows elapsed time
+- **Analytics notifications** - When events are tracked
+- **Reasoning subtitle** - Current thought process
+- **Cursor highlight** - Visual cursor movement
+
+## Override Configuration
+
+You can override config values via command line:
+
+```bash
+# Override website and task
+npm run dev run -- --website "https://different-site.com" --task "Find the pricing page"
+
+# Override model
+npm run dev run -- --model "anthropic/claude-sonnet-4-5-20250929"
+
+# Override max steps
+npm run dev run -- --steps 30
+```
+
+## Common Issues
+
+<Warning>
+If you see "API key not found" errors, make sure your `.env` file is in the correct location (`packages/darwin-sdk/.env`) and contains the right variable name for your chosen model.
+</Warning>
+
+### Browser doesn't open
+
+- Make sure you're using `env: "LOCAL"` in your config
+- Check that Chrome/Chromium is installed on your system
+
+### Agent gets stuck
+
+- Try increasing `maxSteps` in your config
+- Simplify your task description
+- Check terminal output for reasoning - it may be confused about the page structure
+
+## Next Steps
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Configuration Guide" icon="gear" href="/guides/configuration">
+    Learn about all configuration options
+  </Card>
+  <Card title="CLI Commands" icon="terminal" href="/guides/cli-usage">
+    Explore all available commands
+  </Card>
+  <Card title="Evolution Pipeline" icon="dna" href="/concepts/evolution-pipeline">
+    Run the full observe → analyze → evolve cycle
+  </Card>
+  <Card title="Programmatic Usage" icon="code" href="/guides/programmatic-usage">
+    Use Darwin in your own code
+  </Card>
 </CardGroup>
-
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>

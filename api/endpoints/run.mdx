@@ -1,0 +1,311 @@
+---
+title: 'POST /api/run'
+description: 'Execute a browser automation task asynchronously'
+api: 'POST /api/run'
+---
+
+## Endpoint
+
+```
+POST /api/run
+```
+
+Starts a browser automation task asynchronously and returns a session ID immediately. The task runs in the background and can be monitored via the session endpoints.
+
+## Request Body
+
+<ParamField body="website" type="string" required>
+  The URL to navigate to
+</ParamField>
+
+<ParamField body="task" type="string" required>
+  Description of the task to execute
+</ParamField>
+
+<ParamField body="model" type="string" default="google/gemini-3-flash-preview">
+  AI model to use for task execution
+</ParamField>
+
+<ParamField body="maxSteps" type="number" default={20}>
+  Maximum number of steps the agent can take
+</ParamField>
+
+<ParamField body="env" type="string" default="LOCAL">
+  Environment to run the browser in: `LOCAL` or `BROWSERBASE`
+</ParamField>
+
+<ParamField body="apiKey" type="string">
+  BrowserBase API key (required if env is BROWSERBASE)
+</ParamField>
+
+<ParamField body="projectId" type="string">
+  BrowserBase project ID (required if env is BROWSERBASE)
+</ParamField>
+
+<ParamField body="systemPrompt" type="string">
+  Custom system prompt for the AI agent
+</ParamField>
+
+<ParamField body="thinkingFormat" type="string">
+  Instructions for how the agent should format its thinking
+</ParamField>
+
+## Response
+
+<ResponseField name="sessionId" type="string">
+  Unique identifier for this agent session
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Initial status, typically "started"
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Human-readable status message
+</ResponseField>
+
+<ResponseField name="config" type="object">
+  Echo of the task configuration
+  
+  <Expandable title="Config Properties">
+    <ResponseField name="website" type="string">
+      The website URL
+    </ResponseField>
+    
+    <ResponseField name="task" type="string">
+      The task description
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Examples
+
+<CodeGroup>
+```bash cURL
+curl -X POST http://localhost:3002/api/run \
+  -H "Content-Type: application/json" \
+  -d '{
+    "website": "https://example.com",
+    "task": "Click the sign up button",
+    "maxSteps": 15
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('http://localhost:3002/api/run', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    website: 'https://example.com',
+    task: 'Click the sign up button and fill the form',
+    model: 'google/gemini-3-flash-preview',
+    maxSteps: 20,
+    env: 'LOCAL'
+  })
+});
+
+const data = await response.json();
+console.log('Session ID:', data.sessionId);
+
+// Monitor progress via streaming
+const eventSource = new EventSource(
+  `http://localhost:3002/api/stream/${data.sessionId}`
+);
+
+eventSource.addEventListener('status', (e) => {
+  const data = JSON.parse(e.data);
+  console.log('Status:', data.status);
+});
+
+eventSource.addEventListener('result', (e) => {
+  const data = JSON.parse(e.data);
+  console.log('Result:', data);
+  eventSource.close();
+});
+```
+
+```python Python
+import requests
+import json
+
+response = requests.post(
+    'http://localhost:3002/api/run',
+    headers={'Content-Type': 'application/json'},
+    json={
+        'website': 'https://example.com',
+        'task': 'Find and click the pricing link',
+        'maxSteps': 10,
+        'env': 'LOCAL'
+    }
+)
+
+data = response.json()
+session_id = data['sessionId']
+print(f"Started session: {session_id}")
+
+# Check status
+status_response = requests.get(
+    f'http://localhost:3002/api/session/{session_id}'
+)
+print(status_response.json())
+```
+</CodeGroup>
+
+## Response Examples
+
+```json 200 Success
+{
+  "sessionId": "abc123-def456-ghi789",
+  "status": "started",
+  "message": "Browser agent task started",
+  "config": {
+    "website": "https://example.com",
+    "task": "Click the sign up button"
+  }
+}
+```
+
+```json 400 Bad Request
+{
+  "error": "Both 'website' and 'task' are required"
+}
+```
+
+```json 500 Server Error
+{
+  "error": "BROWSERBASE mode requires API key and project ID. Set BROWSERBASE_API_KEY and BROWSERBASE_PROJECT_ID environment variables, or provide them in the config."
+}
+```
+
+## Monitoring Task Progress
+
+After starting a task with `/api/run`, you can monitor its progress using:
+
+### 1. Server-Sent Events (Recommended)
+
+```javascript
+const eventSource = new EventSource(
+  `http://localhost:3002/api/stream/${sessionId}`
+);
+
+eventSource.addEventListener('think', (e) => {
+  const data = JSON.parse(e.data);
+  console.log('Agent thinking:', data.message);
+});
+
+eventSource.addEventListener('action', (e) => {
+  const data = JSON.parse(e.data);
+  console.log('Agent action:', data.message);
+});
+
+eventSource.addEventListener('status', (e) => {
+  const data = JSON.parse(e.data);
+  console.log('Status changed:', data.status);
+});
+
+eventSource.addEventListener('result', (e) => {
+  const data = JSON.parse(e.data);
+  console.log('Final result:', data);
+  eventSource.close();
+});
+
+eventSource.addEventListener('error', (e) => {
+  const data = JSON.parse(e.data);
+  console.error('Error:', data.message);
+});
+```
+
+### 2. Polling (Alternative)
+
+```javascript
+async function pollSession(sessionId) {
+  const response = await fetch(
+    `http://localhost:3002/api/session/${sessionId}`
+  );
+  const session = await response.json();
+  
+  console.log('Status:', session.status);
+  console.log('Steps:', session.steps, '/', session.maxSteps);
+  
+  if (session.status === 'completed') {
+    console.log('Result:', session.result);
+    return session;
+  } else if (session.status === 'error') {
+    console.error('Error:', session.error);
+    return session;
+  }
+  
+  // Poll again after 1 second
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  return pollSession(sessionId);
+}
+
+// Usage
+const { sessionId } = await startTask();
+await pollSession(sessionId);
+```
+
+## Event Types (SSE)
+
+When streaming via `/api/stream/:sessionId`, you'll receive these event types:
+
+<ParamField path="think" type="event">
+  Emitted when the agent is reasoning
+  
+  ```json
+  {
+    "message": "I see a sign up button in the header",
+    "timestamp": "2024-03-14T10:00:00Z"
+  }
+  ```
+</ParamField>
+
+<ParamField path="action" type="event">
+  Emitted when the agent performs an action
+  
+  ```json
+  {
+    "message": "click",
+    "timestamp": "2024-03-14T10:00:01Z"
+  }
+  ```
+</ParamField>
+
+<ParamField path="status" type="event">
+  Emitted when execution status changes
+  
+  ```json
+  {
+    "status": "running",
+    "sessionId": "abc123",
+    "message": "Status changed to: running"
+  }
+  ```
+</ParamField>
+
+<ParamField path="result" type="event">
+  Emitted when task completes (final event)
+  
+  ```json
+  {
+    "success": true,
+    "message": "Task completed successfully"
+  }
+  ```
+</ParamField>
+
+<ParamField path="error" type="event">
+  Emitted when an error occurs
+  
+  ```json
+  {
+    "message": "Element not found: signup-button"
+  }
+  ```
+</ParamField>
+
+## Related Endpoints
+
+- [GET /api/stream/:sessionId](/api/endpoints/sessions#stream-session-logs) - Stream task progress
+- [GET /api/session/:sessionId](/api/endpoints/sessions#get-session) - Get session status
+- [GET /api/sessions](/api/endpoints/sessions#list-sessions) - List all sessions

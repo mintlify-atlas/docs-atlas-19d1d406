@@ -1,0 +1,256 @@
+---
+title: 'Basic Automation'
+description: 'Get started with simple navigation tasks using Darwin'
+icon: 'play'
+---
+
+## Overview
+
+This guide walks you through creating your first browser automation task with Darwin. You'll learn how to navigate to a website, interact with elements, and understand the output from the browser agent.
+
+## Use Case
+
+Automate a simple navigation task: visiting a website and clicking through to a specific page. This is the foundation for more complex automation workflows.
+
+## Prerequisites
+
+<Note>
+Make sure you have:
+- Node.js 20 or later installed
+- Darwin SDK installed and configured
+- An API key for your preferred model (Google, Anthropic, or OpenAI)
+</Note>
+
+## Approach 1: Using the CLI
+
+<Steps>
+  <Step title="Initialize Configuration">
+    First, create a configuration file:
+
+    ```bash
+    cd packages/darwin-sdk
+    npx darwin init
+    ```
+
+    This creates a `darwin.config.json` file in your project.
+  </Step>
+
+  <Step title="Edit Configuration">
+    Open `darwin.config.json` and set your task:
+
+    ```json darwin.config.json
+    {
+      "website": "https://example.com",
+      "task": "Navigate to the About page and find contact information",
+      "model": "google/gemini-3-flash-preview",
+      "maxSteps": 20,
+      "env": "LOCAL",
+      "verbose": 1
+    }
+    ```
+
+    <Tip>
+    Start with `verbose: 1` for basic logging. Use `verbose: 2` for detailed debugging.
+    </Tip>
+  </Step>
+
+  <Step title="Run the Agent">
+    Execute your automation task:
+
+    ```bash
+    npx darwin run
+    ```
+
+    The browser will open in headful mode, and you'll see:
+    - The browser window with visible cursor movement
+    - Terminal logs showing each step and reasoning
+    - Real-time thinking process displayed in the browser
+  </Step>
+</Steps>
+
+## Approach 2: Programmatic Usage
+
+For more control, use Darwin programmatically in your TypeScript/JavaScript code:
+
+```typescript
+import { BrowserAgent } from '@darwin/sdk';
+
+// Create and configure the agent
+const agent = new BrowserAgent({
+  website: 'https://example.com',
+  task: 'Navigate to the About page and find contact information',
+  model: 'google/gemini-3-flash-preview',
+  maxSteps: 20,
+  env: 'LOCAL',
+  verbose: 1,
+});
+
+// Initialize the browser
+await agent.init();
+
+try {
+  // Execute the task
+  const { thoughts, result, steps } = await agent.execute();
+  
+  console.log(`Task completed in ${steps} steps`);
+  console.log(`Captured ${thoughts.length} thoughts`);
+  
+  // Access the thoughts for analysis
+  thoughts.forEach((thought, idx) => {
+    console.log(`Step ${thought.step}: ${thought.text}`);
+  });
+  
+  // Check if task was successful
+  if (result.success) {
+    console.log('Task completed successfully!');
+  } else {
+    console.log('Task completed but may not have reached goal');
+  }
+} finally {
+  // Always close the browser
+  await agent.close();
+}
+```
+
+## Understanding the Output
+
+### Terminal Output
+
+When running Darwin, you'll see several types of output:
+
+<CodeGroup>
+```bash Thinking Output
+💭 Thinking: I see a navigation menu at the top. Looking for an About link.
+```
+
+```bash Action Output
+🔧 Action: click
+```
+
+```bash Completion Output
+✓ Task completed
+  Thoughts captured: 8
+```
+</CodeGroup>
+
+### Thoughts JSON
+
+The agent returns a structured array of thoughts:
+
+```json
+[
+  {
+    "step": 1,
+    "text": "I see a navigation menu at the top. Looking for an About link.",
+    "timestamp": "2026-03-14T10:30:00.000Z",
+    "source": "stream"
+  },
+  {
+    "step": 2,
+    "text": "Found the About link in the navigation. Clicking it now.",
+    "timestamp": "2026-03-14T10:30:02.500Z",
+    "source": "step_finish"
+  },
+  {
+    "step": 3,
+    "text": "Page loaded successfully. Scanning for contact information.",
+    "timestamp": "2026-03-14T10:30:05.200Z",
+    "source": "stream"
+  }
+]
+```
+
+### Result Object
+
+The execution result contains:
+
+```typescript
+interface ExecuteResult {
+  thoughts: ThoughtEntry[];  // Array of captured reasoning
+  result: {
+    success: boolean;        // Whether task completed successfully
+    message: string;         // Summary message
+    actions: Action[];       // List of actions taken
+  };
+  steps: number;            // Total steps executed
+}
+```
+
+## CLI Options
+
+You can override config values directly from the command line:
+
+```bash
+# Override website and task
+npx darwin run --website "https://example.com" --task "Find the pricing page"
+
+# Override model
+npx darwin run --model "anthropic/claude-sonnet-4-5-20250929"
+
+# Override max steps
+npx darwin run --steps 30
+
+# Use BROWSERBASE environment
+npx darwin run --env BROWSERBASE
+```
+
+## Tips and Best Practices
+
+<Tip>
+**Start Simple**: Begin with straightforward navigation tasks before moving to complex interactions.
+</Tip>
+
+<Tip>
+**Use Headful Mode**: Running in LOCAL mode with a visible browser helps you understand what the agent is doing.
+</Tip>
+
+<Tip>
+**Monitor Thoughts**: The thinking process reveals how the agent interprets the page and makes decisions.
+</Tip>
+
+<Tip>
+**Adjust Max Steps**: If a task times out, increase `maxSteps`. Most simple tasks complete in 10-20 steps.
+</Tip>
+
+<Warning>
+Always call `agent.close()` when using programmatic mode to properly clean up browser resources.
+</Warning>
+
+## Common Issues
+
+### Browser Doesn't Open
+
+Ensure you're using `env: "LOCAL"` in your configuration. BROWSERBASE mode runs headless in the cloud.
+
+### Task Times Out
+
+Increase `maxSteps` in your configuration:
+
+```json
+{
+  "maxSteps": 30
+}
+```
+
+### Missing API Key
+
+Set your API key as an environment variable:
+
+```bash
+export GOOGLE_GENERATIVE_AI_API_KEY=your_key_here
+# or
+export ANTHROPIC_API_KEY=your_key_here
+# or
+export OPENAI_API_KEY=your_key_here
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Form Filling" icon="file-lines" href="/examples/form-filling">
+    Learn to automate form completion
+  </Card>
+  <Card title="Custom Workflows" icon="diagram-project" href="/examples/custom-workflows">
+    Build complex multi-step workflows
+  </Card>
+</CardGroup>

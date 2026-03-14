@@ -1,0 +1,70 @@
+---
+title: 'GET /api/status'
+description: 'Check Darwin API service status'
+api: 'GET /api/status'
+---
+
+## Endpoint
+
+```
+GET /api/status
+```
+
+Checks if the Darwin Browser Agent API is running and ready to accept requests.
+
+## Response
+
+<ResponseField name="status" type="string">
+  Service status, typically "ready"
+</ResponseField>
+
+<ResponseField name="service" type="string">
+  Service identifier
+</ResponseField>
+
+## Example
+
+<CodeGroup>
+```bash cURL
+curl http://localhost:3002/api/status
+```
+
+```javascript JavaScript
+const response = await fetch('http://localhost:3002/api/status');
+const data = await response.json();
+
+console.log(data);
+// { status: "ready", service: "Darwin Browser Agent API" }
+```
+
+```python Python
+import requests
+
+response = requests.get('http://localhost:3002/api/status')
+data = response.json()
+
+print(data)
+# {'status': 'ready', 'service': 'Darwin Browser Agent API'}
+```
+</CodeGroup>
+
+## Response Example
+
+```json 200 OK
+{
+  "status": "ready",
+  "service": "Darwin Browser Agent API"
+}
+```
+
+## Use Cases
+
+- Health checks for monitoring systems
+- Verifying API availability before running tasks
+- Integration testing setup
+- Load balancer health probes
+
+## Related Endpoints
+
+- [GET /api/metrics](/api/endpoints/sessions#get-metrics) - Get service metrics
+- [GET /api/sessions](/api/endpoints/sessions#list-sessions) - List all sessions

@@ -1,0 +1,285 @@
+---
+title: 'Config Functions'
+description: 'Configuration management utilities for Darwin'
+icon: 'gear'
+---
+
+## Overview
+
+Darwin provides utility functions to manage configuration files for browser automation tasks. These functions help you load, save, and create configuration files in JSON format.
+
+## Configuration File Format
+
+Darwin looks for a `darwin.config.json` file in the current working directory by default:
+
+```json darwin.config.json
+{
+  "website": "https://example.com",
+  "task": "Click the sign up button and fill out the registration form",
+  "model": "google/gemini-3-flash-preview",
+  "maxSteps": 20,
+  "env": "LOCAL",
+  "verbose": 1
+}
+```
+
+## Functions
+
+### loadConfig()
+
+Loads configuration from a JSON file.
+
+```typescript
+function loadConfig(configPath?: string): DarwinConfig
+```
+
+**Parameters:**
+
+<ParamField path="configPath" type="string" optional>
+  Path to config file. Defaults to `darwin.config.json` in current directory
+</ParamField>
+
+**Returns:** `DarwinConfig` object
+
+**Throws:**
+- Error if config file doesn't exist
+- Error if JSON is invalid
+- Error if required fields (`website`, `task`) are missing
+
+<CodeGroup>
+```typescript Default Path
+import { loadConfig } from '@darwin/sdk';
+
+const config = loadConfig();
+console.log(config.website); // https://example.com
+```
+
+```typescript Custom Path
+import { loadConfig } from '@darwin/sdk';
+
+const config = loadConfig('./custom-config.json');
+console.log(config.task);
+```
+</CodeGroup>
+
+### saveConfig()
+
+Saves configuration to a JSON file.
+
+```typescript
+function saveConfig(config: DarwinConfig, configPath?: string): void
+```
+
+**Parameters:**
+
+<ParamField path="config" type="DarwinConfig" required>
+  Configuration object to save
+</ParamField>
+
+<ParamField path="configPath" type="string" optional>
+  Path to save config file. Defaults to `darwin.config.json` in current directory
+</ParamField>
+
+**Returns:** `void`
+
+<CodeGroup>
+```typescript Example
+import { saveConfig } from '@darwin/sdk';
+
+const config = {
+  website: 'https://myapp.com',
+  task: 'Find and click the login button',
+  model: 'google/gemini-3-flash-preview',
+  maxSteps: 15,
+  env: 'LOCAL',
+  verbose: 1
+};
+
+saveConfig(config);
+// Creates darwin.config.json in current directory
+```
+</CodeGroup>
+
+### createDefaultConfig()
+
+Creates a default configuration file with example values.
+
+```typescript
+function createDefaultConfig(configPath?: string): void
+```
+
+**Parameters:**
+
+<ParamField path="configPath" type="string" optional>
+  Path to create config file. Defaults to `darwin.config.json` in current directory
+</ParamField>
+
+**Returns:** `void`
+
+**Throws:** Error if config file already exists
+
+<CodeGroup>
+```typescript Example
+import { createDefaultConfig } from '@darwin/sdk';
+
+createDefaultConfig();
+// Creates darwin.config.json with default values
+```
+</CodeGroup>
+
+The default configuration created:
+
+```json
+{
+  "website": "https://example.com",
+  "task": "Click the sign up button and fill out the registration form",
+  "model": "google/gemini-3-flash-preview",
+  "maxSteps": 20,
+  "env": "LOCAL",
+  "verbose": 1
+}
+```
+
+### toBrowserAgentConfig()
+
+Converts a `DarwinConfig` object to a `BrowserAgentConfig` object.
+
+```typescript
+function toBrowserAgentConfig(config: DarwinConfig): BrowserAgentConfig
+```
+
+**Parameters:**
+
+<ParamField path="config" type="DarwinConfig" required>
+  Darwin configuration object
+</ParamField>
+
+**Returns:** `BrowserAgentConfig` object ready for `BrowserAgent` constructor
+
+<CodeGroup>
+```typescript Example
+import { loadConfig, toBrowserAgentConfig, BrowserAgent } from '@darwin/sdk';
+
+const darwinConfig = loadConfig();
+const agentConfig = toBrowserAgentConfig(darwinConfig);
+const agent = new BrowserAgent(agentConfig);
+```
+</CodeGroup>
+
+## DarwinConfig Interface
+
+The configuration object structure:
+
+<ParamField path="website" type="string" required>
+  The URL to navigate to
+</ParamField>
+
+<ParamField path="task" type="string" required>
+  Description of the task to execute
+</ParamField>
+
+<ParamField path="model" type="string" optional>
+  AI model to use. Defaults to `google/gemini-3-flash-preview`
+</ParamField>
+
+<ParamField path="maxSteps" type="number" optional>
+  Maximum number of steps. Defaults to 20
+</ParamField>
+
+<ParamField path="env" type="'LOCAL' | 'BROWSERBASE'" optional>
+  Environment to run browser in. Defaults to `LOCAL`
+</ParamField>
+
+<ParamField path="apiKey" type="string" optional>
+  BrowserBase API key (required for BROWSERBASE env)
+</ParamField>
+
+<ParamField path="projectId" type="string" optional>
+  BrowserBase project ID (required for BROWSERBASE env)
+</ParamField>
+
+<ParamField path="verbose" type="0 | 1 | 2" optional>
+  Logging verbosity (0=silent, 1=info, 2=debug). Defaults to 1
+</ParamField>
+
+<ParamField path="systemPrompt" type="string" optional>
+  Custom system prompt for the AI agent
+</ParamField>
+
+<ParamField path="thinkingFormat" type="string" optional>
+  Instructions for how the agent should format its thinking
+</ParamField>
+
+## Complete Example
+
+```typescript
+import {
+  loadConfig,
+  saveConfig,
+  createDefaultConfig,
+  toBrowserAgentConfig,
+  BrowserAgent
+} from '@darwin/sdk';
+
+// Create a default config file if it doesn't exist
+try {
+  createDefaultConfig();
+  console.log('Created default config');
+} catch (err) {
+  console.log('Config already exists');
+}
+
+// Load and modify config
+const config = loadConfig();
+config.website = 'https://myapp.com';
+config.task = 'Test the checkout flow';
+config.maxSteps = 25;
+
+// Save the modified config
+saveConfig(config);
+
+// Use config with BrowserAgent
+const agentConfig = toBrowserAgentConfig(config);
+const agent = new BrowserAgent(agentConfig);
+
+async function run() {
+  await agent.init();
+  const result = await agent.execute();
+  await agent.close();
+  console.log(result);
+}
+
+run();
+```
+
+## Environment-Specific Configuration
+
+### Local Development
+
+```json
+{
+  "website": "http://localhost:3000",
+  "task": "Test user registration",
+  "env": "LOCAL",
+  "verbose": 2
+}
+```
+
+### BrowserBase Cloud
+
+```json
+{
+  "website": "https://production.com",
+  "task": "Monitor checkout flow",
+  "env": "BROWSERBASE",
+  "apiKey": "your-api-key",
+  "projectId": "your-project-id",
+  "verbose": 1
+}
+```
+
+## See Also
+
+- [BrowserAgent](/api/browser-agent) - Using the browser agent
+- [DarwinConfig](/api/types#darwinconfig) - Full configuration interface
+- [BrowserAgentConfig](/api/types#browseragentconfig) - Agent configuration interface

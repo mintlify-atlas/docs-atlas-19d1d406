@@ -1,0 +1,340 @@
+---
+title: 'darwin config'
+description: 'Manage Darwin configuration settings'
+icon: 'gear'
+---
+
+## Overview
+
+The `darwin config` command allows you to view and modify your Darwin configuration without manually editing JSON files. It provides a convenient way to update individual settings from the command line.
+
+## Syntax
+
+```bash
+darwin config [options]
+```
+
+## Options
+
+<ParamField path="config" type="string" default="darwin.config.json">
+  Path to the configuration file
+  
+  **Flag:** `-c, --config <path>`
+  
+  Specifies which configuration file to read or modify.
+</ParamField>
+
+<ParamField path="set-website" type="string">
+  Set the website URL
+  
+  **Flag:** `--set-website <url>`
+  
+  Updates the `website` field in the configuration.
+</ParamField>
+
+<ParamField path="set-task" type="string">
+  Set the task description
+  
+  **Flag:** `--set-task <task>`
+  
+  Updates the `task` field in the configuration.
+</ParamField>
+
+<ParamField path="set-model" type="string">
+  Set the AI model
+  
+  **Flag:** `--set-model <model>`
+  
+  Updates the `model` field in the configuration.
+  
+  **Supported models:**
+  - `google/gemini-3-flash-preview`
+  - `anthropic/claude-sonnet-4-5-20250929`
+  - `anthropic/claude-haiku-4-5-20251001`
+</ParamField>
+
+<ParamField path="set-steps" type="number">
+  Set the maximum number of steps
+  
+  **Flag:** `--set-steps <number>`
+  
+  Updates the `maxSteps` field in the configuration.
+</ParamField>
+
+## Usage Examples
+
+<CodeGroup>
+
+```bash View Current Config
+darwin config
+# Displays the current configuration in JSON format
+```
+
+```bash Set Website
+darwin config --set-website "https://github.com"
+# Updates the website URL
+```
+
+```bash Set Task
+darwin config --set-task "Navigate to the pricing page and screenshot it"
+# Updates the task description
+```
+
+```bash Set Model
+darwin config --set-model "google/gemini-3-flash-preview"
+# Changes the AI model
+```
+
+```bash Set Max Steps
+darwin config --set-steps 25
+# Updates the maximum steps allowed
+```
+
+```bash Multiple Updates
+darwin config \
+  --set-website "https://example.com" \
+  --set-task "Find the contact form" \
+  --set-steps 15
+# Updates multiple fields at once
+```
+
+```bash Custom Config File
+darwin config --config custom.json --set-website "https://test.com"
+# Modifies a specific configuration file
+```
+
+</CodeGroup>
+
+## Behavior Details
+
+### Auto-Creation
+
+If the specified configuration file doesn't exist, `darwin config` will automatically create it with default values before applying your changes:
+
+```bash
+darwin config --set-website "https://example.com"
+# If darwin.config.json doesn't exist, it will be created first
+```
+
+<Note>
+This is different from `darwin init`, which fails if the config file already exists. The `config` command is more forgiving and will create the file if needed.
+</Note>
+
+### Output Format
+
+After updating the configuration, the command displays the complete updated configuration:
+
+```bash
+✓ Configuration updated: darwin.config.json
+{
+  "website": "https://github.com",
+  "task": "Navigate to the pricing page",
+  "model": "google/gemini-3-flash-preview",
+  "maxSteps": 20,
+  "env": "LOCAL",
+  "verbose": 1
+}
+```
+
+## Configuration Schema
+
+All configuration fields that can be set:
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `website` | `string` | `"https://example.com"` | Target website URL |
+| `task` | `string` | `"Click the sign up button..."` | Task description |
+| `model` | `string` | `"google/gemini-3-flash-preview"` | AI model identifier |
+| `maxSteps` | `number` | `20` | Maximum automation steps |
+| `env` | `string` | `"LOCAL"` | Environment: `"LOCAL"` or `"BROWSERBASE"` |
+| `verbose` | `number` | `1` | Logging level: `0`, `1`, or `2` |
+| `apiKey` | `string` | `undefined` | Optional: Override API key |
+| `projectId` | `string` | `undefined` | Optional: Browserbase project ID |
+| `systemPrompt` | `string` | `undefined` | Optional: Custom system prompt |
+| `thinkingFormat` | `string` | `undefined` | Optional: Custom thinking format |
+
+<Warning>
+Currently, the CLI only supports setting `website`, `task`, `model`, and `maxSteps` via command-line flags. To modify other fields like `verbose`, `systemPrompt`, or `env`, you must manually edit the JSON file.
+</Warning>
+
+## Common Workflows
+
+### Quick Task Updates
+
+When testing different tasks on the same website:
+
+```bash
+# Initial setup
+darwin config --set-website "https://myapp.com"
+
+# Test different tasks
+darwin config --set-task "Click login"
+darwin run
+
+darwin config --set-task "Fill signup form"
+darwin run
+
+darwin config --set-task "Navigate to dashboard"
+darwin run
+```
+
+### Environment Switching
+
+For testing across different environments:
+
+```bash
+# Switch to development
+darwin config --set-website "https://dev.myapp.com"
+darwin run
+
+# Switch to staging
+darwin config --set-website "https://staging.myapp.com"
+darwin run
+
+# Switch to production
+darwin config --set-website "https://myapp.com"
+darwin run
+```
+
+### Model Comparison
+
+To compare different AI models on the same task:
+
+```bash
+# Test with Gemini Flash
+darwin config --set-model "google/gemini-3-flash-preview"
+darwin run
+
+# Test with Claude Sonnet
+darwin config --set-model "anthropic/claude-sonnet-4-5-20250929"
+darwin run
+
+# Test with Claude Haiku
+darwin config --set-model "anthropic/claude-haiku-4-5-20251001"
+darwin run
+```
+
+## Advanced Configuration
+
+For advanced settings not exposed via CLI flags, manually edit the config file:
+
+```json darwin.config.json
+{
+  "website": "https://example.com",
+  "task": "Your task here",
+  "model": "google/gemini-3-flash-preview",
+  "maxSteps": 20,
+  "env": "LOCAL",
+  "verbose": 2,
+  "systemPrompt": "You are a specialized web automation agent focused on e-commerce workflows.",
+  "thinkingFormat": "structured",
+  "viewport": {
+    "width": 1920,
+    "height": 1080
+  }
+}
+```
+
+<Tip>
+**Viewport Configuration**: While not settable via CLI, you can add custom viewport dimensions directly in the JSON file for testing responsive designs or specific screen sizes.
+</Tip>
+
+## Configuration Validation
+
+The `config` command performs validation when loading the configuration:
+
+### Required Fields
+
+- `website`: Must be present (can be set via `--set-website`)
+- `task`: Must be present (can be set via `--set-task`)
+
+### Format Validation
+
+The configuration file must be valid JSON. If the file is corrupted:
+
+```
+Error: Invalid JSON in config file: darwin.config.json
+```
+
+**Solution:** Fix the JSON syntax or delete the file and recreate it with `darwin init`.
+
+## Error Handling
+
+### Permission Denied
+
+```
+Error: EACCES: permission denied, open 'darwin.config.json'
+```
+
+**Solution:** Check file permissions or run with appropriate privileges.
+
+### Invalid File Path
+
+```
+Error: ENOENT: no such file or directory
+```
+
+**Solution:** Ensure the directory exists when using custom config paths.
+
+## Tips & Best Practices
+
+<Tip>
+**Version Control**: Include your `darwin.config.json` in version control (with sensitive values in environment variables) to share automation configurations across your team.
+
+```json darwin.config.json
+{
+  "website": "https://staging.myapp.com",
+  "task": "Test checkout flow",
+  "model": "google/gemini-3-flash-preview",
+  "maxSteps": 25,
+  "env": "LOCAL"
+}
+```
+
+Store API keys in `.env` (which should be in `.gitignore`):
+```bash .env
+GOOGLE_GENERATIVE_AI_API_KEY=your_key_here
+```
+</Tip>
+
+<Tip>
+**Multiple Configs**: Maintain separate configuration files for different automation scenarios:
+
+```bash
+darwin config --config login.json --set-task "Test login"
+darwin config --config signup.json --set-task "Test registration"
+darwin config --config checkout.json --set-task "Complete purchase"
+```
+</Tip>
+
+## Related Commands
+
+<CardGroup cols={2}>
+  <Card title="darwin init" icon="file-plus" href="/cli/init">
+    Create a new configuration file with defaults
+  </Card>
+  
+  <Card title="darwin run" icon="play" href="/cli/run">
+    Execute automation with the current configuration
+  </Card>
+</CardGroup>
+
+## Programmatic Access
+
+For advanced use cases, you can also load and manipulate configurations programmatically:
+
+```typescript
+import { loadConfig, saveConfig } from 'darwin-sdk/core/config';
+
+// Load configuration
+const config = loadConfig('darwin.config.json');
+
+// Modify values
+config.website = 'https://newsite.com';
+config.maxSteps = 30;
+
+// Save changes
+saveConfig(config, 'darwin.config.json');
+```
+
+See the [API Reference](/api/config) for more details on programmatic configuration management.

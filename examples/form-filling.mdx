@@ -1,0 +1,385 @@
+---
+title: 'Form Filling'
+description: 'Automate form completion with validation and error handling'
+icon: 'file-lines'
+---
+
+## Overview
+
+Learn how to use Darwin to automatically fill out web forms, handle different input types, and manage validation errors. This is essential for automating sign-ups, registrations, and data entry tasks.
+
+## Use Case
+
+Automate the completion of a registration form with multiple input types:
+- Text fields (name, email)
+- Password fields
+- Select dropdowns
+- Checkboxes and radio buttons
+- Form validation handling
+
+## Basic Form Filling Example
+
+<Steps>
+  <Step title="Configure the Task">
+    Create a configuration targeting a form:
+
+    ```json darwin.config.json
+    {
+      "website": "https://example.com/signup",
+      "task": "Fill out the registration form with name 'John Doe', email 'john@example.com', password 'SecurePass123', select 'Developer' as role, and submit the form",
+      "model": "google/gemini-3-flash-preview",
+      "maxSteps": 30,
+      "env": "LOCAL",
+      "verbose": 2
+    }
+    ```
+
+    <Note>
+    Use `verbose: 2` for form filling to see detailed field interactions.
+    </Note>
+  </Step>
+
+  <Step title="Run the Automation">
+    ```bash
+    npx darwin run
+    ```
+
+    Darwin will:
+    1. Navigate to the form
+    2. Identify all form fields
+    3. Fill each field with appropriate data
+    4. Handle validation
+    5. Submit the form
+  </Step>
+</Steps>
+
+## Programmatic Form Filling
+
+For production use cases, implement form filling programmatically:
+
+```typescript
+import { BrowserAgent } from '@darwin/sdk';
+
+interface FormData {
+  name: string;
+  email: string;
+  password: string;
+  role: string;
+  agreeToTerms: boolean;
+}
+
+async function fillRegistrationForm(formData: FormData) {
+  const agent = new BrowserAgent({
+    website: 'https://example.com/signup',
+    task: `Fill out the registration form with the following data:
+      - Name: ${formData.name}
+      - Email: ${formData.email}
+      - Password: ${formData.password}
+      - Role: ${formData.role}
+      ${formData.agreeToTerms ? '- Check the terms and conditions checkbox' : ''}
+      Then submit the form and verify successful registration.`,
+    model: 'google/gemini-3-flash-preview',
+    maxSteps: 30,
+    env: 'LOCAL',
+    verbose: 1,
+  });
+
+  await agent.init();
+
+  try {
+    const { thoughts, result, steps } = await agent.execute();
+    
+    // Check for validation errors in thoughts
+    const validationErrors = thoughts.filter(thought => 
+      thought.text.toLowerCase().includes('error') ||
+      thought.text.toLowerCase().includes('invalid')
+    );
+
+    if (validationErrors.length > 0) {
+      console.log('Validation errors encountered:');
+      validationErrors.forEach(error => console.log(`  - ${error.text}`));
+    }
+
+    return {
+      success: result.success,
+      thoughts,
+      validationErrors,
+      steps,
+    };
+  } finally {
+    await agent.close();
+  }
+}
+
+// Usage
+const result = await fillRegistrationForm({
+  name: 'John Doe',
+  email: 'john@example.com',
+  password: 'SecurePass123',
+  role: 'Developer',
+  agreeToTerms: true,
+});
+
+console.log(`Form ${result.success ? 'submitted' : 'failed'} in ${result.steps} steps`);
+```
+
+## Handling Different Input Types
+
+### Text and Email Fields
+
+```typescript
+const agent = new BrowserAgent({
+  website: 'https://example.com/form',
+  task: `Fill in the name field with "Jane Smith" and email field with "jane@example.com"`,
+  maxSteps: 15,
+});
+```
+
+### Password Fields
+
+```typescript
+const agent = new BrowserAgent({
+  website: 'https://example.com/form',
+  task: `Enter "SecurePass123!" in the password field and "SecurePass123!" in the confirm password field`,
+  maxSteps: 15,
+});
+```
+
+<Warning>
+Be cautious with passwords in task descriptions. For production use, consider using environment variables or secure vaults.
+</Warning>
+
+### Select Dropdowns
+
+```typescript
+const agent = new BrowserAgent({
+  website: 'https://example.com/form',
+  task: `Select "United States" from the country dropdown and "California" from the state dropdown`,
+  maxSteps: 20,
+});
+```
+
+### Checkboxes and Radio Buttons
+
+```typescript
+const agent = new BrowserAgent({
+  website: 'https://example.com/form',
+  task: `Check the "I agree to terms and conditions" checkbox and select the "Email notifications" radio button`,
+  maxSteps: 15,
+});
+```
+
+### Date Pickers
+
+```typescript
+const agent = new BrowserAgent({
+  website: 'https://example.com/form',
+  task: `Select the date "March 14, 2026" from the date picker`,
+  maxSteps: 20,
+});
+```
+
+## Validation and Error Handling
+
+### Detecting Validation Errors
+
+Darwin's thinking process naturally captures validation errors:
+
+```typescript
+async function fillFormWithValidation(formData: any) {
+  const agent = new BrowserAgent({
+    website: 'https://example.com/signup',
+    task: `Fill the form with provided data. If you see any validation errors, note them and attempt to correct the input.`,
+    maxSteps: 40, // Allow more steps for error correction
+    verbose: 2,
+  });
+
+  await agent.init();
+
+  try {
+    const { thoughts, result } = await agent.execute();
+    
+    // Analyze thoughts for error patterns
+    const errors = thoughts
+      .filter(t => 
+        t.text.match(/error|invalid|required|must|cannot/i)
+      )
+      .map(t => ({
+        step: t.step,
+        message: t.text,
+        timestamp: t.timestamp,
+      }));
+
+    return {
+      success: result.success,
+      errors,
+      allThoughts: thoughts,
+    };
+  } finally {
+    await agent.close();
+  }
+}
+```
+
+### Retry Logic
+
+Implement retry logic for flaky forms:
+
+```typescript
+async function fillFormWithRetry(
+  formData: any,
+  maxRetries: number = 3
+) {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`Attempt ${attempt} of ${maxRetries}`);
+      
+      const agent = new BrowserAgent({
+        website: 'https://example.com/signup',
+        task: `Fill and submit the registration form. Data: ${JSON.stringify(formData)}`,
+        maxSteps: 30,
+      });
+
+      await agent.init();
+      
+      try {
+        const result = await agent.execute();
+        
+        if (result.result.success) {
+          console.log(`Success on attempt ${attempt}`);
+          return result;
+        }
+      } finally {
+        await agent.close();
+      }
+    } catch (error) {
+      lastError = error as Error;
+      console.log(`Attempt ${attempt} failed: ${lastError.message}`);
+      
+      if (attempt < maxRetries) {
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+  }
+  
+  throw new Error(`Form filling failed after ${maxRetries} attempts: ${lastError?.message}`);
+}
+```
+
+## Advanced Form Scenarios
+
+### Multi-Step Forms
+
+```typescript
+const agent = new BrowserAgent({
+  website: 'https://example.com/signup',
+  task: `Complete the multi-step registration:
+    Step 1: Enter name "John Doe" and email "john@example.com", click Next
+    Step 2: Enter address details, city "San Francisco", click Next
+    Step 3: Review information and click Submit`,
+  maxSteps: 50,
+  verbose: 2,
+});
+```
+
+### Dynamic Forms
+
+Handle forms that change based on user input:
+
+```typescript
+const agent = new BrowserAgent({
+  website: 'https://example.com/form',
+  task: `Fill the form:
+    1. Select "Business" as account type
+    2. Wait for additional business fields to appear
+    3. Fill company name "Acme Corp" and tax ID "12-3456789"
+    4. Submit the form`,
+  maxSteps: 40,
+});
+```
+
+### File Uploads
+
+<Warning>
+File uploads require special handling and may not work in all scenarios. The file must be accessible from the browser's local filesystem.
+</Warning>
+
+```typescript
+const agent = new BrowserAgent({
+  website: 'https://example.com/upload',
+  task: `Click the file upload button and select the file at /path/to/document.pdf`,
+  maxSteps: 20,
+  systemPrompt: 'You are automating a file upload. Use the file input element to upload files.',
+});
+```
+
+## Best Practices
+
+<Tip>
+**Be Specific**: Clearly describe each field and the data to enter. Use field labels as they appear on the page.
+</Tip>
+
+<Tip>
+**Allow Extra Steps**: Forms often require more steps than expected. Set `maxSteps` to at least 30-40 for complex forms.
+</Tip>
+
+<Tip>
+**Use Verbose Mode**: Set `verbose: 2` to see detailed field interactions and catch validation issues.
+</Tip>
+
+<Tip>
+**Test Incrementally**: Test form filling in stages (first few fields, then add more) to identify problem areas.
+</Tip>
+
+<Tip>
+**Monitor Thoughts**: Review the thoughts array to understand how the agent interprets form fields and validation messages.
+</Tip>
+
+## Common Issues
+
+### Form Doesn't Submit
+
+**Solution**: Make sure your task explicitly mentions submitting the form:
+
+```json
+{
+  "task": "Fill the form AND click the Submit button"
+}
+```
+
+### Fields Not Being Filled
+
+**Solution**: Use the exact label text from the form:
+
+```typescript
+// Instead of:
+task: "Enter name in the input"
+
+// Use:
+task: "Enter 'John Doe' in the 'Full Name' field"
+```
+
+### Validation Errors Ignored
+
+**Solution**: Increase `maxSteps` and add error handling to your task:
+
+```json
+{
+  "task": "Fill the form. If you see validation errors, correct them and try again.",
+  "maxSteps": 50
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="UI Evolution" icon="wand-magic-sparkles" href="/examples/ui-evolution">
+    Learn about the full evolution pipeline
+  </Card>
+  <Card title="Custom Workflows" icon="diagram-project" href="/examples/custom-workflows">
+    Build complex automation workflows
+  </Card>
+</CardGroup>

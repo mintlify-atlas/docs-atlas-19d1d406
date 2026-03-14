@@ -1,0 +1,454 @@
+---
+title: CLI Usage
+description: Complete reference for all Darwin CLI commands
+---
+
+## Installation
+
+The Darwin CLI is available in the `darwin-sdk` package:
+
+```bash
+cd packages/darwin-sdk
+npm install
+```
+
+## Running Commands
+
+### Built Package
+
+After building:
+
+```bash
+npm run build
+npm start <command>
+```
+
+Or directly:
+
+```bash
+node dist/cli/index.js <command>
+```
+
+### Dev Mode (Recommended)
+
+No build needed:
+
+```bash
+npm run dev <command>
+```
+
+## Commands
+
+### darwin init
+
+Create a default configuration file.
+
+**Usage**:
+
+```bash
+npx darwin init [options]
+```
+
+**Options**:
+
+| Option | Description | Default |
+|--------|-------------|----------|
+| `-c, --config <path>` | Path to config file | `darwin.config.json` |
+
+**Examples**:
+
+```bash
+# Create default config
+npx darwin init
+
+# Create with custom name
+npx darwin init --config my-config.json
+```
+
+**Output**:
+
+```json darwin.config.json
+{
+  "website": "https://example.com",
+  "task": "Click the sign up button and fill out the registration form",
+  "model": "google/gemini-3-flash-preview",
+  "maxSteps": 20,
+  "env": "LOCAL",
+  "verbose": 1
+}
+```
+
+<Info>
+If a config file already exists, this command will error. Delete the existing file first or use a different name.
+</Info>
+
+---
+
+### darwin run
+
+Run the browser agent with a configured task.
+
+**Usage**:
+
+```bash
+npx darwin run [options]
+```
+
+**Options**:
+
+| Option | Description | Default |
+|--------|-------------|----------|
+| `-c, --config <path>` | Path to config file | `darwin.config.json` |
+| `-w, --website <url>` | Override website URL | - |
+| `-t, --task <task>` | Override task description | - |
+| `-m, --model <model>` | Override model | - |
+| `-s, --steps <number>` | Override max steps | - |
+| `--env <env>` | Environment: LOCAL or BROWSERBASE | `LOCAL` |
+
+**Examples**:
+
+```bash
+# Run with config file
+npx darwin run
+
+# Override website
+npx darwin run --website "http://localhost:3000"
+
+# Override task
+npx darwin run --task "Find the pricing page"
+
+# Override model
+npx darwin run --model "anthropic/claude-sonnet-4-5-20250929"
+
+# Override max steps
+npx darwin run --steps 30
+
+# Multiple overrides
+npx darwin run \
+  --website "http://localhost:3000" \
+  --task "Complete signup flow" \
+  --steps 25 \
+  --model "google/gemini-3-flash-preview"
+
+# Use Browserbase
+npx darwin run --env BROWSERBASE
+```
+
+**Output**:
+
+```bash
+Initializing Stagehand browser agent...
+Stagehand initialized successfully
+Navigating to: https://example.com
+Page loaded, starting task execution...
+
+💭 Thinking: I see a sign up button in the top right corner
+
+🔧 Action: click
+
+💭 Thinking: The form appeared, I need to fill in the email field
+
+🔧 Action: type
+
+✓ Task completed
+  Thoughts captured: 8
+
+📋 Thoughts JSON:
+[
+  {
+    "step": 1,
+    "text": "I see a sign up button in the top right corner",
+    "timestamp": "2026-03-14T10:30:00.000Z",
+    "source": "stream"
+  },
+  ...
+]
+```
+
+<Note>
+The browser window will remain open in LOCAL mode. Close it manually or it will close automatically when the task completes.
+</Note>
+
+---
+
+### darwin config
+
+Manage configuration values.
+
+**Usage**:
+
+```bash
+npx darwin config [options]
+```
+
+**Options**:
+
+| Option | Description |
+|--------|-------------|
+| `-c, --config <path>` | Path to config file (default: `darwin.config.json`) |
+| `--set-website <url>` | Set website URL |
+| `--set-task <task>` | Set task description |
+| `--set-model <model>` | Set model |
+| `--set-steps <number>` | Set max steps |
+
+**Examples**:
+
+```bash
+# Set website
+npx darwin config --set-website "https://new-site.com"
+
+# Set task
+npx darwin config --set-task "Test the checkout flow"
+
+# Set model
+npx darwin config --set-model "anthropic/claude-haiku-4-5-20251001"
+
+# Set max steps
+npx darwin config --set-steps 50
+
+# Multiple updates
+npx darwin config \
+  --set-website "http://localhost:3000" \
+  --set-task "New task" \
+  --set-steps 30
+
+# Use custom config file
+npx darwin config --config custom.json --set-website "https://example.com"
+```
+
+**Output**:
+
+```bash
+✓ Configuration updated: darwin.config.json
+{
+  "website": "https://new-site.com",
+  "task": "Test the checkout flow",
+  "model": "google/gemini-3-flash-preview",
+  "maxSteps": 50,
+  "env": "LOCAL",
+  "verbose": 1
+}
+```
+
+<Tip>
+If the config file doesn't exist, this command will create it with default values before applying your updates.
+</Tip>
+
+---
+
+### darwin evolve
+
+Run the full evolution pipeline: agent → analyze → code evolution.
+
+**Usage**:
+
+```bash
+npx darwin evolve [options]
+```
+
+**Options**:
+
+| Option | Description | Default |
+|--------|-------------|----------|
+| `-c, --config <path>` | Path to config file | `darwin.config.json` |
+| `-w, --website <url>` | Override website URL | - |
+| `-t, --task <task>` | Override task description | - |
+| `-m, --model <model>` | Override model | - |
+| `-s, --steps <number>` | Override max steps | - |
+| `--env <env>` | Environment: LOCAL or BROWSERBASE | `LOCAL` |
+| `--target <path>` | Target app path for code modifications | `../demo-app` |
+
+**Examples**:
+
+```bash
+# Run evolution with default config
+npx darwin evolve
+
+# Specify target app
+npx darwin evolve --target ./my-app
+
+# With overrides
+npx darwin evolve \
+  --website "http://localhost:3000" \
+  --task "Test signup flow" \
+  --target ../my-app
+```
+
+**Output**:
+
+```bash
+🧬 Darwin Evolution Pipeline
+
+  Website: http://localhost:3000
+  Task: Complete signup flow
+  Target: /path/to/demo-app
+
+Clearing previous events...
+✓ Events cleared
+
+Step 1: Running browser agent...
+💭 Thinking: Looking for sign up button...
+🔧 Action: click
+✓ Agent completed with 12 thoughts
+
+Step 2: Loading analytics events...
+✓ Loaded 45 events
+
+Step 3: Analyzing data with Gemini...
+✓ Analysis complete: 2 issues found
+  Summary: Users struggle with form visibility
+
+  Issues found:
+    1. [high] Homepage hero section: CTA lacks prominence
+    2. [medium] Sign-up form: Password requirements unclear
+
+Step 4: Evolving codebase with Gemini...
+[Gemini CLI output streams here...]
+
+✓ Evolution complete!
+```
+
+<Warning>
+The `evolve` command modifies your code. Always review changes before committing.
+</Warning>
+
+**What it does**:
+
+1. Clears `events.json` in target app
+2. Runs browser agent and captures thoughts
+3. Loads analytics events from `events.json`
+4. Uses Gemini to analyze data and identify problems
+5. Uses Claude (via `runClaude()`) to generate code fixes
+6. Outputs a summary of changes made
+
+---
+
+## Common Workflows
+
+### Quick Testing
+
+```bash
+# Create config for a quick test
+npx darwin init --config test.json
+
+# Edit the config
+vim test.json
+
+# Run it
+npx darwin run --config test.json --steps 10
+```
+
+### Multi-Step Flow Testing
+
+```bash
+# Create config for complex flow
+npx darwin init --config checkout-flow.json
+
+# Set up the task
+npx darwin config --config checkout-flow.json \
+  --set-website "http://localhost:3000" \
+  --set-task "Add item to cart, proceed to checkout, fill shipping info" \
+  --set-steps 50
+
+# Run it
+npx darwin run --config checkout-flow.json
+```
+
+### Evolution Iteration
+
+```bash
+# Iteration 1: Identify problems
+npx darwin evolve --target ./my-app
+
+# Review changes, test app
+git diff
+npm run dev
+
+# Iteration 2: Further improvements
+npx darwin evolve --target ./my-app
+
+# Continue until satisfied
+```
+
+### CI/CD Integration
+
+```bash
+# Use Browserbase for headless execution
+npx darwin run \
+  --env BROWSERBASE \
+  --website "https://staging.example.com" \
+  --task "Smoke test critical paths" \
+  --steps 30
+```
+
+## Environment Variables
+
+The CLI automatically loads from `.env` files:
+
+```bash .env
+# AI model keys
+GOOGLE_GENERATIVE_AI_API_KEY=your_key_here
+ANTHROPIC_API_KEY=your_key_here
+OPENAI_API_KEY=your_key_here
+
+# Browserbase (optional)
+BROWSERBASE_API_KEY=your_key_here
+BROWSERBASE_PROJECT_ID=your_project_id
+
+# Debug
+DEBUG=pw:browser  # Playwright debug logs
+```
+
+## Exit Codes
+
+| Code | Meaning |
+|------|----------|
+| 0 | Success |
+| 1 | Error (config not found, task failed, etc.) |
+
+## Debugging
+
+### Verbose Output
+
+```bash
+# In config
+{
+  "verbose": 2
+}
+
+# Or via environment
+DEBUG=* npx darwin run
+```
+
+### Check Config
+
+```bash
+cat darwin.config.json | jq
+```
+
+### View Logs
+
+```bash
+# Redirect output to file
+npx darwin run > output.log 2>&1
+
+# View later
+less output.log
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/guides/configuration">
+    Learn all configuration options
+  </Card>
+  <Card title="Programmatic Usage" icon="code" href="/guides/programmatic-usage">
+    Use Darwin in your code instead of CLI
+  </Card>
+  <Card title="API Server" icon="server" href="/guides/api-server">
+    Run Darwin as a service
+  </Card>
+  <Card title="CLI Reference" icon="book" href="/cli/init">
+    Detailed CLI command reference
+  </Card>
+</CardGroup>

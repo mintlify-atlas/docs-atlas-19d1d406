@@ -1,0 +1,364 @@
+---
+title: MCP Integrations
+description: Add Model Context Protocol integrations to extend agent capabilities
+---
+
+## Overview
+
+Darwin supports [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) integrations, allowing you to extend your agents with additional tools and data sources.
+
+<Info>
+MCP is a standardized protocol for connecting AI models to external tools, APIs, and data sources.
+</Info>
+
+## What is MCP?
+
+MCP provides a standard way for AI agents to:
+
+- **Access external data** - Databases, APIs, file systems
+- **Use tools** - Search engines, calculators, code executors
+- **Connect services** - CRMs, analytics platforms, cloud providers
+
+## Adding MCP Integrations
+
+### Via Configuration
+
+```json darwin.config.json
+{
+  "website": "https://example.com",
+  "task": "Research competitors and create comparison",
+  "model": "google/gemini-3-flash-preview",
+  "integrations": [
+    "https://mcp.exa.ai/mcp?exaApiKey=YOUR_EXA_API_KEY"
+  ]
+}
+```
+
+<Note>
+The `integrations` field is passed directly to Stagehand, which handles MCP connection.
+</Note>
+
+### Via Code
+
+```typescript
+import { BrowserAgent } from "darwin-ui/core/browser-agent";
+
+const agent = new BrowserAgent({
+  website: "https://example.com",
+  task: "Find pricing information and compare with competitors",
+  model: "google/gemini-3-flash-preview",
+  integrations: [
+    `https://mcp.exa.ai/mcp?exaApiKey=${process.env.EXA_API_KEY}`
+  ]
+});
+
+await agent.init();
+await agent.execute();
+await agent.close();
+```
+
+### Via CLI
+
+Currently, MCP integrations must be added to the config file. CLI override support is planned.
+
+## Available MCP Integrations
+
+### Exa Search
+
+**URL**: `https://mcp.exa.ai/mcp`
+
+**Description**: Advanced web search API for AI agents
+
+**Capabilities**:
+- Semantic search across the web
+- Find similar pages
+- Get clean content from URLs
+- Filter by domain, date, etc.
+
+**Setup**:
+
+1. Get API key at [exa.ai](https://exa.ai)
+2. Add to integration:
+
+```json
+{
+  "integrations": [
+    "https://mcp.exa.ai/mcp?exaApiKey=YOUR_EXA_API_KEY"
+  ]
+}
+```
+
+**Example Use Case**:
+
+```json
+{
+  "website": "https://your-saas.com",
+  "task": "Research our top 5 competitors, compare pricing, and summarize key differences",
+  "integrations": [
+    "https://mcp.exa.ai/mcp?exaApiKey=YOUR_KEY"
+  ]
+}
+```
+
+The agent can now search the web for competitor information.
+
+---
+
+### More MCP Servers
+
+The MCP ecosystem is growing. Check [modelcontextprotocol.io](https://modelcontextprotocol.io) for:
+
+- **Database connectors** - PostgreSQL, MongoDB, etc.
+- **Cloud services** - AWS, Google Cloud, Azure
+- **Development tools** - GitHub, GitLab, Jira
+- **Analytics** - Google Analytics, Amplitude
+- **Communication** - Slack, Discord, email
+
+## Building Custom MCP Servers
+
+You can create your own MCP server to extend Darwin:
+
+### Example: Custom Analytics Server
+
+```typescript
+// mcp-server.ts
+import { MCPServer } from '@modelcontextprotocol/sdk';
+
+const server = new MCPServer({
+  name: 'custom-analytics',
+  version: '1.0.0'
+});
+
+server.addTool({
+  name: 'getAnalytics',
+  description: 'Get analytics data for a specific metric',
+  parameters: {
+    type: 'object',
+    properties: {
+      metric: { type: 'string' },
+      startDate: { type: 'string' },
+      endDate: { type: 'string' }
+    }
+  },
+  handler: async ({ metric, startDate, endDate }) => {
+    // Fetch from your analytics DB
+    const data = await fetchAnalytics(metric, startDate, endDate);
+    return { data };
+  }
+});
+
+server.listen(3003);
+```
+
+### Use in Darwin
+
+```json
+{
+  "integrations": [
+    "http://localhost:3003"
+  ]
+}
+```
+
+Now your agent can query analytics while navigating:
+
+```json
+{
+  "task": "Navigate to dashboard, check current sign-up rate, and compare with last week's analytics"
+}
+```
+
+## MCP + Evolution Pipeline
+
+MCP integrations are especially powerful during evolution:
+
+```json
+{
+  "website": "http://localhost:3000",
+  "task": "Test the checkout flow, search for industry best practices, and suggest improvements",
+  "integrations": [
+    "https://mcp.exa.ai/mcp?exaApiKey=YOUR_KEY"
+  ]
+}
+```
+
+Run evolution:
+
+```bash
+npx darwin evolve
+```
+
+The agent will:
+1. Navigate and test your checkout flow
+2. **Use Exa to research** checkout best practices
+3. **Analyze** patterns and issues
+4. **Generate code** improvements based on research
+
+<Tip>
+This creates data-driven UX improvements backed by industry research.
+</Tip>
+
+## Security Considerations
+
+<Warning>
+MCP integrations can access external services. Only use trusted MCP servers.
+</Warning>
+
+### Best Practices
+
+1. **Verify URLs** - Only add MCP servers you trust
+2. **Use environment variables** - Don't hardcode API keys
+3. **Limit scope** - Only add integrations needed for the task
+4. **Review logs** - Check what data is being sent
+
+### Environment Variables
+
+```bash .env
+EXA_API_KEY=your_exa_key
+CUSTOM_MCP_URL=http://localhost:3003
+CUSTOM_MCP_TOKEN=your_token
+```
+
+```typescript
+const agent = new BrowserAgent({
+  website: "https://example.com",
+  task: "Research task",
+  integrations: [
+    `https://mcp.exa.ai/mcp?exaApiKey=${process.env.EXA_API_KEY}`,
+    `${process.env.CUSTOM_MCP_URL}?token=${process.env.CUSTOM_MCP_TOKEN}`
+  ]
+});
+```
+
+## Integration Examples
+
+### Search-Enhanced Navigation
+
+```typescript
+const agent = new BrowserAgent({
+  website: "https://your-ecommerce.com",
+  task: "Find the best-selling product in the 'Electronics' category, research similar products from competitors, and compare prices",
+  integrations: [
+    `https://mcp.exa.ai/mcp?exaApiKey=${process.env.EXA_API_KEY}`
+  ]
+});
+```
+
+The agent can:
+1. Navigate your site to find best-sellers
+2. Use Exa to search for competitor products
+3. Compare and report findings
+
+### Data-Driven Testing
+
+```typescript
+const agent = new BrowserAgent({
+  website: "http://localhost:3000",
+  task: "Test the sign-up flow, check conversion rates from analytics, and identify drop-off points",
+  integrations: [
+    `http://localhost:3003` // Your analytics MCP server
+  ]
+});
+```
+
+The agent can:
+1. Navigate through sign-up
+2. Query analytics during the flow
+3. Correlate UX issues with data
+
+### Multi-Source Research
+
+```typescript
+const agent = new BrowserAgent({
+  website: "https://your-saas.com",
+  task: "Review our pricing page, research competitor pricing via web search, fetch our internal analytics on pricing page performance, and suggest improvements",
+  integrations: [
+    `https://mcp.exa.ai/mcp?exaApiKey=${process.env.EXA_API_KEY}`,
+    `http://localhost:3003` // Analytics server
+  ]
+});
+```
+
+## Debugging MCP Issues
+
+### Check MCP Connection
+
+```typescript
+// Enable verbose logging
+const agent = new BrowserAgent({
+  website: "https://example.com",
+  task: "Test",
+  verbose: 2,
+  integrations: ["https://mcp.exa.ai/mcp?exaApiKey=xxx"]
+});
+```
+
+Look for MCP-related logs in terminal output.
+
+### Test MCP Server
+
+Test your MCP server independently:
+
+```bash
+curl http://localhost:3003/health
+```
+
+### Verify API Keys
+
+```bash
+# Check environment variable
+echo $EXA_API_KEY
+
+# Test API key directly
+curl https://mcp.exa.ai/mcp?exaApiKey=$EXA_API_KEY
+```
+
+## Limitations
+
+- MCP integrations are passed to Stagehand, so capabilities depend on Stagehand's MCP support
+- Not all MCP tools may be compatible with hybrid mode
+- Some MCPs may have rate limits or require specific API versions
+
+## Future Development
+
+<Note>
+Planned features:
+- CLI support for MCP integrations
+- MCP marketplace in Darwin dashboard
+- Built-in MCP servers for common use cases
+- MCP integration templates
+</Note>
+
+## Resources
+
+<CardGroup cols={2}>
+  <Card title="MCP Specification" icon="book" href="https://modelcontextprotocol.io">
+    Official MCP protocol documentation
+  </Card>
+  <Card title="Exa MCP" icon="search" href="https://exa.ai">
+    Web search MCP integration
+  </Card>
+  <Card title="Stagehand Docs" icon="book" href="https://docs.stagehand.dev">
+    Stagehand's MCP support
+  </Card>
+  <Card title="Build MCP Servers" icon="code" href="https://modelcontextprotocol.io/docs/build">
+    Create custom MCP integrations
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Browser Agent" icon="robot" href="/concepts/browser-agent">
+    Learn how agents use MCP tools
+  </Card>
+  <Card title="Evolution Pipeline" icon="dna" href="/concepts/evolution-pipeline">
+    Use MCP in evolution workflows
+  </Card>
+  <Card title="Programmatic Usage" icon="code" href="/guides/programmatic-usage">
+    Add MCPs programmatically
+  </Card>
+  <Card title="Examples" icon="lightbulb" href="/examples/custom-workflows">
+    See MCP integration examples
+  </Card>
+</CardGroup>

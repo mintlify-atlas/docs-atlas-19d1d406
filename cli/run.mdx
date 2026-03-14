@@ -1,0 +1,346 @@
+---
+title: 'darwin run'
+description: 'Execute browser automation with the Darwin agent'
+icon: 'play'
+---
+
+## Overview
+
+The `darwin run` command executes your browser automation task using an AI-powered agent. It loads your configuration, launches a browser, and autonomously navigates the website to complete your specified task.
+
+## Syntax
+
+```bash
+darwin run [options]
+```
+
+## Options
+
+<ParamField path="config" type="string" default="darwin.config.json">
+  Path to the configuration file
+  
+  **Flag:** `-c, --config <path>`
+  
+  Specifies which configuration file to load.
+</ParamField>
+
+<ParamField path="website" type="string">
+  Override the website URL from the config file
+  
+  **Flag:** `-w, --website <url>`
+  
+  Allows you to test different websites without modifying the config file.
+</ParamField>
+
+<ParamField path="task" type="string">
+  Override the task description from the config file
+  
+  **Flag:** `-t, --task <task>`
+  
+  Useful for running different tasks on the same website.
+</ParamField>
+
+<ParamField path="model" type="string">
+  Override the AI model from the config file
+  
+  **Flag:** `-m, --model <model>`
+  
+  Supported models:
+  - `google/gemini-3-flash-preview` (recommended)
+  - `anthropic/claude-sonnet-4-5-20250929`
+  - `anthropic/claude-haiku-4-5-20251001`
+</ParamField>
+
+<ParamField path="steps" type="number">
+  Override the maximum number of steps
+  
+  **Flag:** `-s, --steps <number>`
+  
+  Controls how many actions the agent can take before stopping.
+</ParamField>
+
+<ParamField path="env" type="string" default="LOCAL">
+  Execution environment
+  
+  **Flag:** `--env <env>`
+  
+  Options:
+  - `LOCAL`: Runs on your local machine with a visible browser
+  - `BROWSERBASE`: Runs on Browserbase cloud infrastructure
+</ParamField>
+
+## Usage Examples
+
+<CodeGroup>
+
+```bash Basic Usage
+darwin run
+# Uses darwin.config.json in the current directory
+```
+
+```bash Custom Config
+darwin run --config my-automation.json
+# Uses a specific configuration file
+```
+
+```bash Override Website
+darwin run --website "https://github.com"
+# Runs the configured task on a different website
+```
+
+```bash Override Task
+darwin run --task "Find and click the pricing page"
+# Runs a different task on the configured website
+```
+
+```bash Full Override
+darwin run \
+  --website "https://example.com" \
+  --task "Fill out the contact form" \
+  --model "google/gemini-3-flash-preview" \
+  --steps 15
+# Overrides all configuration values
+```
+
+```bash Browserbase Mode
+darwin run --env BROWSERBASE
+# Runs in the cloud (requires BROWSERBASE_API_KEY and BROWSERBASE_PROJECT_ID)
+```
+
+</CodeGroup>
+
+## Execution Flow
+
+When you run `darwin run`, the following sequence occurs:
+
+<Steps>
+  <Step title="Load Configuration">
+    The command loads the configuration file (or creates one if it doesn't exist)
+  </Step>
+  
+  <Step title="Apply Overrides">
+    Any command-line flags override the config file values
+  </Step>
+  
+  <Step title="Validate Settings">
+    Ensures required fields (website and task) are present
+  </Step>
+  
+  <Step title="Initialize Browser">
+    Launches the browser (headful in LOCAL mode, headless in BROWSERBASE mode)
+  </Step>
+  
+  <Step title="Execute Task">
+    The AI agent navigates the website and performs the task
+  </Step>
+  
+  <Step title="Capture Results">
+    Collects thoughts, actions, and execution logs
+  </Step>
+  
+  <Step title="Output Summary">
+    Displays completion status and thought logs in JSON format
+  </Step>
+</Steps>
+
+## Output Format
+
+The command outputs execution progress in real-time and provides a final summary:
+
+```bash
+✓ Task completed
+  Thoughts captured: 12
+
+📋 Thoughts JSON:
+[
+  {
+    "step": 1,
+    "observation": "Page loaded successfully",
+    "action": "Looking for sign up button",
+    "reasoning": "Need to locate the registration form"
+  },
+  ...
+]
+```
+
+<Note>
+The thoughts array contains detailed step-by-step reasoning from the AI agent, useful for understanding how the automation executed and for debugging.
+</Note>
+
+## Environment Requirements
+
+### Local Mode (Default)
+
+Required environment variables:
+
+```bash .env
+# For Google models (recommended)
+GOOGLE_GENERATIVE_AI_API_KEY=your_key_here
+
+# OR for Anthropic models
+ANTHROPIC_API_KEY=your_key_here
+
+# OR for OpenAI models
+OPENAI_API_KEY=your_key_here
+```
+
+### Browserbase Mode
+
+Required environment variables:
+
+```bash .env
+# Browserbase credentials
+BROWSERBASE_API_KEY=your_browserbase_key
+BROWSERBASE_PROJECT_ID=your_project_id
+
+# Plus your model API key (same as above)
+GOOGLE_GENERATIVE_AI_API_KEY=your_key_here
+```
+
+## Error Handling
+
+### Config File Not Found
+
+If the configuration file doesn't exist:
+
+```
+Error: Config file not found: darwin.config.json
+
+Run 'darwin init' to create a configuration file.
+```
+
+**Solution:** Run `darwin init` first to create a configuration file.
+
+### Missing Required Fields
+
+If website or task is not specified:
+
+```
+Error: Website is required. Set it in config or use --website
+```
+
+**Solution:** Either add the field to your config file or use the command-line flag.
+
+### API Key Not Set
+
+If the required API key is missing:
+
+```
+Error: API key not found for the specified model
+```
+
+**Solution:** Set the appropriate environment variable in your `.env` file.
+
+<Warning>
+The browser will automatically close after execution completes. If you need to keep it open for debugging, you'll need to modify the source code or use the programmatic API.
+</Warning>
+
+## Debug Mode
+
+For detailed error information, set the `DEBUG` environment variable:
+
+```bash
+DEBUG=1 darwin run
+# Shows full stack traces on errors
+```
+
+## Performance Tips
+
+<Tip>
+**Optimize Step Count**: Start with a lower `maxSteps` value and increase if needed:
+
+```bash
+darwin run --steps 10  # For simple tasks
+darwin run --steps 30  # For complex workflows
+```
+
+This prevents the agent from running indefinitely and reduces API costs.
+</Tip>
+
+<Tip>
+**Model Selection**: Choose the right model for your use case:
+
+- **Gemini Flash**: Best for most tasks, fastest, lowest cost
+- **Claude Sonnet**: Better for complex reasoning and edge cases
+- **Claude Haiku**: Fastest responses but less capable for complex tasks
+</Tip>
+
+## Common Use Cases
+
+### Testing Multiple Environments
+
+```bash
+# Development
+darwin run --website "https://dev.example.com"
+
+# Staging
+darwin run --website "https://staging.example.com"
+
+# Production
+darwin run --website "https://example.com"
+```
+
+### A/B Testing Tasks
+
+```bash
+# Variant A
+darwin run --task "Click the blue sign up button"
+
+# Variant B
+darwin run --task "Click the green sign up button"
+```
+
+### Regression Testing
+
+```bash
+darwin run --config tests/login-test.json
+darwin run --config tests/checkout-test.json
+darwin run --config tests/search-test.json
+```
+
+## Related Commands
+
+<CardGroup cols={2}>
+  <Card title="darwin init" icon="file-plus" href="/cli/init">
+    Create a configuration file before running
+  </Card>
+  
+  <Card title="darwin config" icon="gear" href="/cli/config">
+    Modify configuration values
+  </Card>
+  
+  <Card title="darwin evolve" icon="dna" href="/cli/evolve">
+    Run the full evolution pipeline with code modifications
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+### Browser Doesn't Open
+
+**Issue:** The command runs but no browser window appears.
+
+**Solutions:**
+1. Check you're using `LOCAL` mode (not `BROWSERBASE`)
+2. Ensure Chrome/Chromium is installed on your system
+3. Verify no display issues if running remotely
+
+### Task Never Completes
+
+**Issue:** The agent runs but doesn't finish the task.
+
+**Solutions:**
+1. Increase `maxSteps` with `--steps 30`
+2. Simplify the task description
+3. Check the website is accessible and loads correctly
+4. Review the thought logs to see where the agent got stuck
+
+### High API Costs
+
+**Issue:** Running automations consumes too many API tokens.
+
+**Solutions:**
+1. Use Gemini Flash instead of Claude models
+2. Reduce `maxSteps` to prevent excessive attempts
+3. Make task descriptions more specific and clear
+4. Consider caching results for repeated tests

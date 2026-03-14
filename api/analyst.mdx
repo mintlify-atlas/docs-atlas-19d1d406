@@ -1,0 +1,294 @@
+---
+title: 'Analyst'
+description: 'AI-powered analysis and code evolution engine'
+icon: 'chart-line'
+---
+
+## Overview
+
+The `Analyst` class analyzes user behavior data and agent thoughts to identify UX problems, then autonomously generates code changes to fix those issues. It uses Google's Gemini AI for analysis and Claude for code modifications.
+
+## Constructor
+
+<ParamField path="targetAppPath" type="string" optional>
+  Path to the target application to analyze and modify. Defaults to `../../demo-app`
+</ParamField>
+
+```typescript
+import { Analyst } from '@darwin/sdk';
+
+const analyst = new Analyst('/path/to/your/app');
+```
+
+**Environment Variables Required:**
+
+- `GEMINI_API_KEY` or `GOOGLE_API_KEY` - Required for analysis
+
+## Methods
+
+### analyze()
+
+Analyzes analytics data and user thoughts to identify product issues.
+
+```typescript
+await analyze(
+  analytics: AnalyticsSnapshot,
+  logic: ThoughtEntry[]
+): Promise<AnalysisResult>
+```
+
+**Parameters:**
+
+<ParamField path="analytics" type="AnalyticsSnapshot" required>
+  Snapshot of analytics events to analyze
+  
+  <Expandable title="AnalyticsSnapshot Structure">
+    ```typescript
+    {
+      events: Array<Record<string, any>>
+    }
+    ```
+  </Expandable>
+</ParamField>
+
+<ParamField path="logic" type="ThoughtEntry[]" required>
+  Array of thought entries from browser agent execution
+</ParamField>
+
+**Returns:** `Promise<AnalysisResult>`
+
+<ResponseField name="summary" type="string">
+  High-level summary of findings
+</ResponseField>
+
+<ResponseField name="mainProblems" type="ProductIssue[]">
+  Array of identified UX issues
+  
+  <Expandable title="ProductIssue Structure">
+    <ResponseField name="id" type="string">
+      Unique identifier for the issue
+    </ResponseField>
+    
+    <ResponseField name="severity" type="'low' | 'medium' | 'high' | 'critical'">
+      Severity level of the issue
+    </ResponseField>
+    
+    <ResponseField name="evidence" type="string[]">
+      Evidence from analytics and thoughts supporting this issue
+    </ResponseField>
+    
+    <ResponseField name="hypothesis" type="string">
+      Hypothesis about what's causing the problem
+    </ResponseField>
+    
+    <ResponseField name="recommendedAction" type="string">
+      Recommended action to fix the issue
+    </ResponseField>
+    
+    <ResponseField name="affectedArea" type="string">
+      Area of the product affected (e.g., "Navigation", "Checkout")
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="confidence" type="number">
+  Confidence score (0-1) in the analysis
+</ResponseField>
+
+<CodeGroup>
+```typescript Example
+const analyticsSnapshot = {
+  events: [
+    { event: 'page_view', page: '/pricing', timestamp: 1234567890 },
+    { event: 'click', element: 'signup-button', timestamp: 1234567891 }
+  ]
+};
+
+const thoughts = [
+  {
+    step: 1,
+    text: "I can't find the signup button",
+    timestamp: '2024-03-14T10:00:00Z',
+    source: 'stream'
+  }
+];
+
+const analysis = await analyst.analyze(analyticsSnapshot, thoughts);
+
+console.log(analysis.summary);
+console.log(`Found ${analysis.mainProblems.length} issues`);
+```
+</CodeGroup>
+
+### evolve()
+
+Generates and applies code changes to fix the highest priority issue from analysis.
+
+```typescript
+await evolve(
+  analysis: AnalysisResult,
+  onStream?: (data: string, type: 'stdout' | 'stderr') => void
+): Promise<EvolutionResult>
+```
+
+**Parameters:**
+
+<ParamField path="analysis" type="AnalysisResult" required>
+  Analysis result from the `analyze()` method
+</ParamField>
+
+<ParamField path="onStream" type="(data: string, type: 'stdout' | 'stderr') => void" optional>
+  Callback for streaming Claude CLI output in real-time
+</ParamField>
+
+**Returns:** `Promise<EvolutionResult>`
+
+<ResponseField name="stdout" type="string">
+  Standard output from Claude CLI execution
+</ResponseField>
+
+<ResponseField name="stderr" type="string">
+  Standard error output from Claude CLI execution
+</ResponseField>
+
+<ResponseField name="changes" type="CodeChange[]">
+  Array of code changes made
+  
+  <Expandable title="CodeChange Structure">
+    <ResponseField name="id" type="string">
+      Unique identifier for the change
+    </ResponseField>
+    
+    <ResponseField name="component" type="string">
+      Component or feature name that was changed
+    </ResponseField>
+    
+    <ResponseField name="description" type="string">
+      Brief description of what was changed
+    </ResponseField>
+    
+    <ResponseField name="type" type="'added' | 'modified' | 'removed'">
+      Type of change performed
+    </ResponseField>
+    
+    <ResponseField name="file" type="string">
+      Relative path to the file that was changed
+    </ResponseField>
+    
+    <ResponseField name="explanation" type="string">
+      Detailed explanation of how this change addresses the issue
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<CodeGroup>
+```typescript Example
+const evolutionResult = await analyst.evolve(analysis, (data, type) => {
+  if (type === 'stdout') {
+    console.log('Claude output:', data);
+  }
+});
+
+console.log('Evolution complete!');
+console.log(`Changes made: ${evolutionResult.changes.length}`);
+
+for (const change of evolutionResult.changes) {
+  console.log(`- ${change.type}: ${change.file}`);
+  console.log(`  ${change.description}`);
+}
+```
+</CodeGroup>
+
+### buildUXAgentPrompt()
+
+Builds a prompt for the UX improvement agent based on analysis results. This is used internally by `evolve()` but can be called directly if you want to customize the evolution process.
+
+```typescript
+buildUXAgentPrompt(analysis: AnalysisResult): string
+```
+
+**Parameters:**
+
+<ParamField path="analysis" type="AnalysisResult" required>
+  Analysis result to build prompt from
+</ParamField>
+
+**Returns:** `string` - Formatted prompt for the UX agent
+
+<CodeGroup>
+```typescript Example
+const prompt = analyst.buildUXAgentPrompt(analysis);
+console.log(prompt);
+```
+</CodeGroup>
+
+## Complete Example
+
+```typescript
+import { BrowserAgent, Analyst } from '@darwin/sdk';
+import * as fs from 'fs';
+
+async function runEvolutionPipeline() {
+  // Step 1: Run browser agent
+  const agent = new BrowserAgent({
+    website: 'http://localhost:3000',
+    task: 'Try to sign up for an account',
+    maxSteps: 15
+  });
+
+  await agent.init();
+  const { thoughts } = await agent.execute();
+  await agent.close();
+
+  // Step 2: Load analytics
+  const eventsData = fs.readFileSync('./events.json', 'utf-8');
+  const analyticsSnapshot = {
+    events: JSON.parse(eventsData)
+  };
+
+  // Step 3: Analyze
+  const analyst = new Analyst('./my-app');
+  const analysis = await analyst.analyze(analyticsSnapshot, thoughts);
+
+  console.log('Analysis Summary:', analysis.summary);
+  console.log('Issues Found:', analysis.mainProblems.length);
+
+  // Step 4: Evolve
+  if (analysis.mainProblems.length > 0) {
+    const result = await analyst.evolve(analysis);
+    console.log('Code changes:', result.changes);
+  }
+}
+
+runEvolutionPipeline();
+```
+
+## How It Works
+
+The Analyst uses a two-stage approach:
+
+1. **Analysis Stage** - Uses Gemini to:
+   - Process analytics events and user thoughts
+   - Identify UX problems with evidence
+   - Prioritize issues by severity
+   - Generate actionable hypotheses
+
+2. **Evolution Stage** - Uses Claude CLI to:
+   - Generate code changes for the highest priority issue
+   - Modify source files directly
+   - Document changes with explanations
+   - Ensure minimal, focused modifications
+
+## Best Practices
+
+- Always run the browser agent first to collect thought data
+- Ensure analytics events are properly tracked in your app
+- Review generated changes before deploying to production
+- Use version control to track automated changes
+- Set appropriate `maxSteps` to control execution time
+
+## See Also
+
+- [AnalysisResult](/api/types#analysisresult) - Full analysis result structure
+- [ThoughtEntry](/api/types#thoughtentry) - Thought entry format
+- [/api/evolve endpoint](/api/endpoints/evolve) - HTTP API for evolution pipeline

@@ -1,0 +1,501 @@
+---
+title: 'Types & Interfaces'
+description: 'TypeScript type definitions for Darwin SDK'
+icon: 'code'
+---
+
+## Core Configuration Types
+
+### BrowserAgentConfig
+
+Configuration object for the `BrowserAgent` class.
+
+```typescript
+interface BrowserAgentConfig {
+  website: string;
+  task: string;
+  taskName?: string;
+  model?: string;
+  maxSteps?: number;
+  env?: "LOCAL" | "BROWSERBASE";
+  apiKey?: string;
+  projectId?: string;
+  verbose?: 0 | 1 | 2;
+  systemPrompt?: string;
+  thinkingFormat?: string;
+  onEvent?: (type: "think" | "action" | "status" | "error", data: any) => void;
+}
+```
+
+<ParamField path="website" type="string" required>
+  The URL to navigate to
+</ParamField>
+
+<ParamField path="task" type="string" required>
+  Description of the task to execute
+</ParamField>
+
+<ParamField path="taskName" type="string" optional>
+  Task name/title for analytics tracking. If not provided, uses `task` field.
+</ParamField>
+
+<ParamField path="model" type="string" optional default="google/gemini-3-flash-preview">
+  AI model identifier to use for task execution
+</ParamField>
+
+<ParamField path="maxSteps" type="number" optional default={20}>
+  Maximum number of steps the agent can take before stopping
+</ParamField>
+
+<ParamField path="env" type="'LOCAL' | 'BROWSERBASE'" optional default="LOCAL">
+  Browser environment. `LOCAL` runs on your machine, `BROWSERBASE` runs in the cloud.
+</ParamField>
+
+<ParamField path="apiKey" type="string" optional>
+  BrowserBase API key (required when `env` is `BROWSERBASE`)
+</ParamField>
+
+<ParamField path="projectId" type="string" optional>
+  BrowserBase project ID (required when `env` is `BROWSERBASE`)
+</ParamField>
+
+<ParamField path="verbose" type="0 | 1 | 2" optional default={1}>
+  Logging verbosity level:
+  - `0`: Silent (no logs)
+  - `1`: Info (default)
+  - `2`: Debug (verbose)
+</ParamField>
+
+<ParamField path="systemPrompt" type="string" optional>
+  Custom system prompt to override the default agent instructions
+</ParamField>
+
+<ParamField path="thinkingFormat" type="string" optional>
+  Custom instructions for how the agent should format its thinking
+</ParamField>
+
+<ParamField path="onEvent" type="function" optional>
+  Event callback function that receives:
+  - `type`: Event type (`"think"`, `"action"`, `"status"`, `"error"`)
+  - `data`: Event-specific data object
+</ParamField>
+
+---
+
+### DarwinConfig
+
+Configuration object for loading from `darwin.config.json` files.
+
+```typescript
+interface DarwinConfig {
+  website: string;
+  task: string;
+  model?: string;
+  maxSteps?: number;
+  env?: "LOCAL" | "BROWSERBASE";
+  apiKey?: string;
+  projectId?: string;
+  verbose?: 0 | 1 | 2;
+  systemPrompt?: string;
+  thinkingFormat?: string;
+}
+```
+
+Identical to `BrowserAgentConfig` but without the `onEvent` callback (which can only be set programmatically).
+
+---
+
+## Execution Types
+
+### ThoughtEntry
+
+Represents a single thought/reasoning entry from the agent during execution.
+
+```typescript
+interface ThoughtEntry {
+  step: number;
+  text: string;
+  timestamp: string;
+  source: 'stream' | 'step_finish' | 'tool_result' | 'final_reasoning';
+}
+```
+
+<ParamField path="step" type="number">
+  Step number when this thought occurred (1-indexed)
+</ParamField>
+
+<ParamField path="text" type="string">
+  The thought text/reasoning content
+</ParamField>
+
+<ParamField path="timestamp" type="string">
+  ISO 8601 timestamp when the thought was captured
+</ParamField>
+
+<ParamField path="source" type="'stream' | 'step_finish' | 'tool_result' | 'final_reasoning'">
+  Where the thought was captured from:
+  - `stream`: From real-time streaming
+  - `step_finish`: From step completion
+  - `tool_result`: From tool execution result
+  - `final_reasoning`: From final task reasoning
+</ParamField>
+
+**Example:**
+
+```typescript
+const thought: ThoughtEntry = {
+  step: 3,
+  text: "I see a sign up button in the top right corner",
+  timestamp: "2024-03-14T10:00:00Z",
+  source: "stream"
+};
+```
+
+---
+
+## Analytics Types
+
+### AnalyticsEvent
+
+Generic analytics event structure (lenient schema).
+
+```typescript
+type AnalyticsEvent = Record<string, any>;
+```
+
+Can contain any fields. Common fields include:
+
+```typescript
+{
+  event: string;           // Event name (e.g., "button_click", "page_view")
+  timestamp: number;       // Unix timestamp
+  session_id?: string;     // Session identifier
+  user_id?: string;        // User identifier
+  page_name?: string;      // Page path or name
+  element?: string;        // Element identifier
+  // ... any other fields
+}
+```
+
+---
+
+### AnalyticsSnapshot
+
+Snapshot of analytics events for analysis.
+
+```typescript
+interface AnalyticsSnapshot {
+  events: AnalyticsEvent[];
+}
+```
+
+<ParamField path="events" type="AnalyticsEvent[]">
+  Array of analytics events to analyze
+</ParamField>
+
+**Example:**
+
+```typescript
+const snapshot: AnalyticsSnapshot = {
+  events: [
+    {
+      event: "page_view",
+      page_name: "/pricing",
+      timestamp: 1710410400000,
+      session_id: "session-123"
+    },
+    {
+      event: "button_click",
+      element: "signup-btn",
+      timestamp: 1710410405000,
+      session_id: "session-123"
+    }
+  ]
+};
+```
+
+---
+
+## Analysis Types
+
+### Severity
+
+Severity level for identified issues.
+
+```typescript
+type Severity = 'low' | 'medium' | 'high' | 'critical';
+```
+
+---
+
+### ProductIssue
+
+Represents a UX problem identified during analysis.
+
+```typescript
+interface ProductIssue {
+  id: string;
+  severity: Severity;
+  evidence: string[];
+  hypothesis: string;
+  recommendedAction: string;
+  affectedArea: string;
+}
+```
+
+<ParamField path="id" type="string">
+  Unique identifier for the issue
+</ParamField>
+
+<ParamField path="severity" type="Severity">
+  Issue severity level: `'low'`, `'medium'`, `'high'`, or `'critical'`
+</ParamField>
+
+<ParamField path="evidence" type="string[]">
+  Array of evidence strings from analytics and user thoughts
+</ParamField>
+
+<ParamField path="hypothesis" type="string">
+  Hypothesis about what's causing the problem
+</ParamField>
+
+<ParamField path="recommendedAction" type="string">
+  Recommended action to fix the issue
+</ParamField>
+
+<ParamField path="affectedArea" type="string">
+  Area of the product affected (e.g., "Navigation", "Checkout Flow")
+</ParamField>
+
+**Example:**
+
+```typescript
+const issue: ProductIssue = {
+  id: "signup-visibility-001",
+  severity: "high",
+  evidence: [
+    "User thought: 'I can't find the signup button'",
+    "Analytics: Only 12% click-through rate on signup CTA",
+    "5 second average time to locate signup button"
+  ],
+  hypothesis: "Signup button has insufficient visual contrast and hierarchy",
+  recommendedAction: "Increase button size, improve color contrast, and position prominently in header",
+  affectedArea: "User Registration"
+};
+```
+
+---
+
+### AnalysisResult
+
+Complete analysis result from the `Analyst` class.
+
+```typescript
+interface AnalysisResult {
+  summary: string;
+  mainProblems: ProductIssue[];
+  confidence: number;
+}
+```
+
+<ParamField path="summary" type="string">
+  High-level summary of the analysis findings
+</ParamField>
+
+<ParamField path="mainProblems" type="ProductIssue[]">
+  Array of identified UX issues, ordered by severity/priority
+</ParamField>
+
+<ParamField path="confidence" type="number">
+  Confidence score from 0 to 1 indicating how confident the analysis is
+</ParamField>
+
+**Example:**
+
+```typescript
+const analysis: AnalysisResult = {
+  summary: "Found critical visibility issues with primary CTAs affecting conversion",
+  mainProblems: [
+    {
+      id: "signup-visibility-001",
+      severity: "high",
+      evidence: ["User struggled to find signup button"],
+      hypothesis: "Poor visual hierarchy",
+      recommendedAction: "Improve button contrast",
+      affectedArea: "Registration"
+    }
+  ],
+  confidence: 0.85
+};
+```
+
+---
+
+## Evolution Types
+
+### CodeChange
+
+Represents a code change made during evolution.
+
+```typescript
+interface CodeChange {
+  id: string;
+  component: string;
+  description: string;
+  type: 'added' | 'modified' | 'removed';
+  file: string;
+  explanation: string;
+}
+```
+
+<ParamField path="id" type="string">
+  Unique identifier for this change
+</ParamField>
+
+<ParamField path="component" type="string">
+  Component or feature name that was changed
+</ParamField>
+
+<ParamField path="description" type="string">
+  Brief description of what was changed
+</ParamField>
+
+<ParamField path="type" type="'added' | 'modified' | 'removed'">
+  Type of change performed
+</ParamField>
+
+<ParamField path="file" type="string">
+  Relative path to the file that was changed
+</ParamField>
+
+<ParamField path="explanation" type="string">
+  Detailed explanation of how this change addresses the identified issue
+</ParamField>
+
+**Example:**
+
+```typescript
+const change: CodeChange = {
+  id: "signup-btn-contrast",
+  component: "SignupButton",
+  description: "Increased button contrast and size",
+  type: "modified",
+  file: "components/SignupButton.tsx",
+  explanation: "This change addresses the low visibility issue identified in analytics by increasing the button's contrast ratio to WCAG AA standards (4.5:1) and increasing the size from 32px to 48px height for better tap targets."
+};
+```
+
+---
+
+## Session Types
+
+These types are used internally by the session manager and returned by the HTTP API.
+
+### SessionStatus
+
+```typescript
+type SessionStatus = 'initializing' | 'running' | 'completed' | 'error';
+```
+
+---
+
+### Session
+
+Internal session object structure.
+
+```typescript
+interface Session {
+  id: string;
+  status: SessionStatus;
+  config: BrowserAgentConfig;
+  steps?: number;
+  result?: any;
+  error?: string;
+  createdAt: Date;
+  completedAt?: Date;
+  logs: LogEntry[];
+  isEvolution?: boolean;
+  changes?: CodeChange[];
+}
+```
+
+<ParamField path="id" type="string">
+  Unique session identifier
+</ParamField>
+
+<ParamField path="status" type="SessionStatus">
+  Current session status
+</ParamField>
+
+<ParamField path="config" type="BrowserAgentConfig">
+  Configuration used for this session
+</ParamField>
+
+<ParamField path="steps" type="number" optional>
+  Number of steps completed
+</ParamField>
+
+<ParamField path="result" type="any" optional>
+  Final execution result (when completed)
+</ParamField>
+
+<ParamField path="error" type="string" optional>
+  Error message (when status is error)
+</ParamField>
+
+<ParamField path="createdAt" type="Date">
+  Session creation timestamp
+</ParamField>
+
+<ParamField path="completedAt" type="Date" optional>
+  Session completion timestamp
+</ParamField>
+
+<ParamField path="logs" type="LogEntry[]">
+  Array of log entries
+</ParamField>
+
+<ParamField path="isEvolution" type="boolean" optional>
+  Whether this is an evolution session
+</ParamField>
+
+<ParamField path="changes" type="CodeChange[]" optional>
+  Code changes made (evolution sessions only)
+</ParamField>
+
+---
+
+## Import Examples
+
+```typescript
+import type {
+  BrowserAgentConfig,
+  DarwinConfig,
+  ThoughtEntry,
+  AnalysisResult,
+  ProductIssue,
+  Severity,
+  AnalyticsSnapshot,
+  AnalyticsEvent
+} from '@darwin/sdk';
+
+// Use in function signatures
+function processThoughts(thoughts: ThoughtEntry[]): void {
+  thoughts.forEach(thought => {
+    console.log(`Step ${thought.step}: ${thought.text}`);
+  });
+}
+
+// Use in variable declarations
+const config: BrowserAgentConfig = {
+  website: 'https://example.com',
+  task: 'Test signup flow',
+  maxSteps: 15
+};
+```
+
+## See Also
+
+- [BrowserAgent](/api/browser-agent) - Main agent class
+- [Analyst](/api/analyst) - Analysis and evolution class
+- [Config Functions](/api/config) - Configuration utilities

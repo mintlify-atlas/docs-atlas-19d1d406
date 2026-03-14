@@ -1,0 +1,452 @@
+---
+title: 'darwin evolve'
+description: 'Run the full evolution pipeline to automatically improve your application'
+icon: 'dna'
+---
+
+## Overview
+
+The `darwin evolve` command runs Darwin's complete evolution pipeline: it executes browser automation to collect user behavior data, analyzes the data for UX issues, and uses AI to automatically modify your application code to fix the identified problems.
+
+<Note>
+This is Darwin's most powerful feature - it creates a feedback loop where AI observes your application, identifies issues, and evolves the code to improve user experience.
+</Note>
+
+## Syntax
+
+```bash
+darwin evolve [options]
+```
+
+## How It Works
+
+The evolution pipeline consists of four stages:
+
+<Steps>
+  <Step title="Browser Automation">
+    Darwin's agent navigates your application, performing the specified task while capturing detailed interaction data and "thoughts" about the user experience.
+  </Step>
+  
+  <Step title="Analytics Collection">
+    The agent monitors and records analytics events from your application (stored in `events.json`), tracking user actions, errors, and performance metrics.
+  </Step>
+  
+  <Step title="AI Analysis">
+    The Analyst (powered by Gemini) examines both the agent's thoughts and analytics data to identify UX problems, usability issues, and potential improvements.
+  </Step>
+  
+  <Step title="Code Evolution">
+    Gemini automatically modifies your application's source code to address the identified issues, improving the user experience.
+  </Step>
+</Steps>
+
+## Options
+
+<ParamField path="config" type="string" default="darwin.config.json">
+  Path to the configuration file
+  
+  **Flag:** `-c, --config <path>`
+</ParamField>
+
+<ParamField path="website" type="string">
+  Override the website URL
+  
+  **Flag:** `-w, --website <url>`
+  
+  The URL where your application is running (typically localhost during development).
+</ParamField>
+
+<ParamField path="task" type="string">
+  Override the task description
+  
+  **Flag:** `-t, --task <task>`
+  
+  The user journey the agent should follow to discover issues.
+</ParamField>
+
+<ParamField path="model" type="string">
+  Override the AI model for the browser agent
+  
+  **Flag:** `-m, --model <model>`
+</ParamField>
+
+<ParamField path="steps" type="number">
+  Override maximum steps
+  
+  **Flag:** `-s, --steps <number>`
+</ParamField>
+
+<ParamField path="env" type="string" default="LOCAL">
+  Execution environment
+  
+  **Flag:** `--env <env>`
+  
+  Options: `LOCAL` or `BROWSERBASE`
+</ParamField>
+
+<ParamField path="target" type="string" default="../demo-app">
+  Target application path for code modifications
+  
+  **Flag:** `--target <path>`
+  
+  **Critical:** This is the directory containing your application code that Gemini will modify. The path is relative to your current working directory.
+</ParamField>
+
+## Usage Examples
+
+<CodeGroup>
+
+```bash Basic Evolution
+darwin evolve
+# Uses defaults: darwin.config.json and ../demo-app as target
+```
+
+```bash Custom Target
+darwin evolve --target ../my-app
+# Evolves code in a different application directory
+```
+
+```bash Full Configuration
+darwin evolve \
+  --website "http://localhost:3000" \
+  --task "Complete the checkout process" \
+  --target ../ecommerce-app \
+  --steps 30
+```
+
+```bash Development Workflow
+# Start your app
+cd my-app && npm run dev
+
+# In another terminal, run evolution
+cd packages/darwin-sdk
+darwin evolve \
+  --website "http://localhost:3000" \
+  --target ../my-app
+```
+
+</CodeGroup>
+
+## Target Application Requirements
+
+For the evolution pipeline to work, your target application must:
+
+### 1. Have an events.json file
+
+The application should write analytics events to an `events.json` file in its root directory:
+
+```typescript
+import fs from 'fs';
+
+function trackEvent(event: any) {
+  const eventsFile = './events.json';
+  const events = JSON.parse(fs.readFileSync(eventsFile, 'utf-8'));
+  events.push(event);
+  fs.writeFileSync(eventsFile, JSON.stringify(events, null, 2));
+}
+```
+
+### 2. Be accessible via browser
+
+Your app must be running and accessible at the specified website URL (typically `http://localhost:3000`).
+
+### 3. Have modifiable source code
+
+Gemini needs access to your source files to make improvements. Ensure the target path contains your actual source code, not just built artifacts.
+
+<Warning>
+**Important:** The evolve command will modify your application's source code. Always use version control and review changes before committing them.
+</Warning>
+
+## Output & Logging
+
+The evolution pipeline provides detailed progress information:
+
+```bash
+🧬 Darwin Evolution Pipeline
+
+  Website: http://localhost:3000
+  Task: Complete the checkout process
+  Target: /Users/you/projects/my-app
+
+Clearing previous events...
+✓ Events cleared
+
+Step 1: Running browser agent...
+✓ Agent completed with 15 thoughts
+
+Step 2: Loading analytics events...
+✓ Loaded 23 events
+
+Step 3: Analyzing data with Gemini...
+✓ Analysis complete: 3 issues found
+  Summary: The checkout form has usability issues
+
+  Issues found:
+    1. [high] Form validation: Error messages not visible to users
+    2. [medium] Button placement: Submit button below the fold
+    3. [low] Loading states: No feedback during submission
+
+Step 4: Evolving codebase with Gemini...
+
+✓ Evolution complete!
+
+Gemini output:
+Modified 2 files:
+  - src/components/CheckoutForm.tsx
+  - src/styles/form.css
+```
+
+## Analysis Output
+
+The Analyst generates a structured analysis with:
+
+- **Summary**: High-level overview of findings
+- **Main Problems**: List of identified issues with severity levels
+- **Hypothesis**: Proposed explanations for each problem
+- **Affected Areas**: Components or features impacted
+- **Suggested Fixes**: Recommended code changes
+
+## Evolution Results
+
+After evolution completes, you should:
+
+<Steps>
+  <Step title="Review Changes">
+    Use git to see what code was modified:
+    ```bash
+    cd ../my-app
+    git diff
+    ```
+  </Step>
+  
+  <Step title="Test the Application">
+    Restart your app and verify the changes work correctly:
+    ```bash
+    npm run dev
+    ```
+  </Step>
+  
+  <Step title="Run Again (Optional)">
+    Run evolution again to see if the issues are resolved:
+    ```bash
+    darwin evolve
+    ```
+  </Step>
+  
+  <Step title="Commit or Revert">
+    If satisfied, commit the changes:
+    ```bash
+    git add .
+    git commit -m "AI improvements from darwin evolve"
+    ```
+    
+    Or revert if needed:
+    ```bash
+    git restore .
+    ```
+  </Step>
+</Steps>
+
+## Environment Setup
+
+### Required Environment Variables
+
+```bash .env
+# For the browser agent
+GOOGLE_GENERATIVE_AI_API_KEY=your_gemini_api_key
+
+# The Analyst uses Gemini for analysis and code generation
+# (uses the same GOOGLE_GENERATIVE_AI_API_KEY)
+```
+
+### Target Application Structure
+
+```
+my-app/
+├── src/
+│   ├── components/
+│   ├── pages/
+│   └── styles/
+├── events.json          # Analytics events tracked here
+├── package.json
+└── ...
+```
+
+## Advanced Use Cases
+
+### Iterative Improvement
+
+Run evolution multiple times to progressively improve your app:
+
+```bash
+# First iteration
+darwin evolve --task "Sign up for an account"
+# Review and commit changes
+
+# Second iteration with different task
+darwin evolve --task "Complete user profile"
+# Review and commit changes
+
+# Third iteration
+darwin evolve --task "Browse and purchase products"
+# Review and commit changes
+```
+
+### A/B Testing Different Models
+
+```bash
+# Use Gemini Flash (faster, cheaper)
+darwin evolve --model "google/gemini-3-flash-preview"
+
+# Use Claude Sonnet (more sophisticated)
+darwin evolve --model "anthropic/claude-sonnet-4-5-20250929"
+```
+
+### Focus on Specific Workflows
+
+Target specific user journeys:
+
+```bash
+# Focus on authentication
+darwin evolve --task "Sign in with email and password"
+
+# Focus on checkout
+darwin evolve --task "Add items to cart and complete checkout"
+
+# Focus on search
+darwin evolve --task "Search for products and filter results"
+```
+
+## Troubleshooting
+
+### No Issues Found
+
+**Symptom:** The analysis reports 0 issues but you know there are problems.
+
+**Solutions:**
+1. Make the task more specific to expose issues
+2. Ensure events.json is being populated correctly
+3. Increase `--steps` to give the agent more time to encounter issues
+4. Check that analytics events include error information
+
+### Code Changes Don't Apply
+
+**Symptom:** Evolution completes but no files were modified.
+
+**Solutions:**
+1. Verify the `--target` path is correct
+2. Ensure Gemini has identified concrete problems
+3. Check file permissions in the target directory
+4. Review the Gemini output for error messages
+
+### Events.json Not Found
+
+**Symptom:** 
+```
+⚠ No events.json found, using empty events
+```
+
+**Solutions:**
+1. Ensure your application creates an `events.json` file
+2. Verify the target path is correct
+3. Add event tracking to your application code
+
+### Changes Break the Application
+
+**Symptom:** After evolution, the app doesn't run or has new bugs.
+
+**Solutions:**
+1. Revert changes with `git restore .`
+2. Review the specific changes Gemini made
+3. Manually fix issues and commit
+4. Try evolution again with a more focused task
+
+<Warning>
+**Safety Tip:** Always run evolution on a separate git branch:
+
+```bash
+git checkout -b darwin-evolution
+darwin evolve
+# Review changes
+git add .
+git commit -m "Evolution changes"
+# Test thoroughly before merging
+```
+</Warning>
+
+## Performance Considerations
+
+### API Usage
+
+The evolve command makes multiple API calls:
+- Browser agent actions (Gemini/Claude)
+- Analysis phase (Gemini)
+- Code generation phase (Gemini)
+
+<Tip>
+**Cost Optimization:** Use Gemini Flash for the browser agent to reduce costs:
+
+```bash
+darwin evolve --model "google/gemini-3-flash-preview"
+```
+
+The analysis and code generation always use Gemini, which is cost-effective.
+</Tip>
+
+### Execution Time
+
+Typical evolution pipeline timing:
+- Browser automation: 30-60 seconds
+- Analytics loading: < 1 second
+- Analysis: 10-30 seconds
+- Code evolution: 20-60 seconds
+
+**Total: ~2-3 minutes per evolution cycle**
+
+## Related Commands
+
+<CardGroup cols={2}>
+  <Card title="darwin run" icon="play" href="/cli/run">
+    Run just the browser automation without evolution
+  </Card>
+  
+  <Card title="darwin config" icon="gear" href="/cli/config">
+    Configure settings for the evolution pipeline
+  </Card>
+</CardGroup>
+
+## Best Practices
+
+<Tip>
+**Start Small:** Begin with simple, focused tasks to ensure the pipeline works correctly before attempting complex user journeys.
+
+```bash
+# Good starting point
+darwin evolve --task "Click the login button"
+
+# After verification, increase complexity
+darwin evolve --task "Complete the entire login flow"
+```
+</Tip>
+
+<Tip>
+**Track Changes:** Keep a log of evolution runs and their results:
+
+```bash
+# Create an evolution log
+echo "$(date): Ran evolution on checkout flow" >> evolution.log
+darwin evolve --task "Complete checkout"
+git diff >> evolution.log
+```
+</Tip>
+
+<Tip>
+**Combine with Manual Review:** Use evolution as a starting point, then refine:
+
+1. Run `darwin evolve`
+2. Review the suggested changes
+3. Manually adjust or enhance the AI's modifications
+4. Test thoroughly
+5. Commit the final version
+</Tip>

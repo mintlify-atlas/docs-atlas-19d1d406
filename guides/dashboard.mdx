@@ -1,0 +1,496 @@
+---
+title: Dashboard
+description: Monitor and manage Darwin agents through the web dashboard
+---
+
+## Overview
+
+The Darwin Dashboard is a Next.js application that provides a visual interface for running agents, monitoring sessions, and viewing analytics.
+
+<Info>
+The dashboard communicates with the Express API (port 3002) to control agents and stream results in real-time.
+</Info>
+
+## Starting the Dashboard
+
+### With API Server
+
+From the **root directory**:
+
+```bash
+npm run start:services
+```
+
+This starts both:
+- **Express API** on http://localhost:3002
+- **Dashboard** on http://localhost:3001
+
+### Dashboard Only
+
+From `packages/darwin-sdk/dashboard`:
+
+```bash
+cd packages/darwin-sdk/dashboard
+npm run dev
+```
+
+<Warning>
+The dashboard requires the API server to be running on port 3002. Make sure to start it first.
+</Warning>
+
+## Dashboard Features
+
+### Home Page
+
+The landing page shows:
+
+<CardGroup cols={2}>
+  <Card title="System Metrics" icon="chart-line">
+    Total agents, active sessions, success rate, tasks completed
+  </Card>
+  <Card title="Quick Actions" icon="rocket">
+    Start new agent, view recent sessions, configure settings
+  </Card>
+  <Card title="Active Sessions" icon="play">
+    Live view of running agents with real-time status
+  </Card>
+  <Card title="Recent History" icon="clock">
+    Completed sessions with results and thoughts
+  </Card>
+</CardGroup>
+
+### Metrics Overview
+
+Key performance indicators:
+
+```
+┌───────────────────────┐
+│ Total Agents        15 │
+│ Active Sessions      2 │
+│ Success Rate       85% │
+│ Tasks Completed     12 │
+└───────────────────────┘
+```
+
+Fetched from:
+
+```bash
+GET http://localhost:3002/api/metrics
+```
+
+### Run Agent Form
+
+Create and launch new agents:
+
+**Fields**:
+- **Website URL** - Target website
+- **Task Description** - Natural language task
+- **AI Model** - Choose from available models
+- **Max Steps** - Limit agent actions
+- **Environment** - LOCAL or BROWSERBASE
+
+**Example**:
+
+```
+Website: http://localhost:3000
+Task: Sign up for an account and complete onboarding
+Model: google/gemini-3-flash-preview
+Max Steps: 30
+Environment: LOCAL
+
+[Run Agent]
+```
+
+On submit, makes a request to:
+
+```bash
+POST http://localhost:3002/api/run
+```
+
+Returns a `sessionId` for tracking.
+
+### Session Viewer
+
+View detailed session information:
+
+**URL**: `/sessions/:sessionId`
+
+**Displays**:
+
+<Tabs>
+  <Tab title="Overview">
+    - Session ID
+    - Status (initializing, running, completed, error)
+    - Website URL
+    - Task description
+    - Steps taken / max steps
+    - Created time
+    - Completion time
+  </Tab>
+
+  <Tab title="Logs">
+    Real-time streaming logs:
+
+    ```
+    [10:30:15] 📄 Status: Agent initialized
+    [10:30:16] 💭 Thinking: I see a sign up button...
+    [10:30:17] 🔧 Action: click
+    [10:30:18] 💭 Thinking: Form appeared, filling email...
+    [10:30:19] 🔧 Action: type
+    [10:30:20] ✅ Result: Task completed successfully
+    ```
+  </Tab>
+
+  <Tab title="Thoughts">
+    All captured thoughts:
+
+    ```json
+    [
+      {
+        "step": 1,
+        "text": "I see a sign up button in the top right",
+        "timestamp": "2026-03-14T10:30:16.000Z",
+        "source": "stream"
+      },
+      {
+        "step": 2,
+        "text": "Form appeared, filling email field",
+        "timestamp": "2026-03-14T10:30:18.000Z",
+        "source": "step_finish"
+      }
+    ]
+    ```
+  </Tab>
+
+  <Tab title="Changes">
+    For evolution sessions, displays code changes:
+
+    ```
+    📦 Changes Generated (1)
+    
+    └─ Modified: app/components/HeroSection.tsx
+       "Increased sign-up button size and prominence"
+       
+       This addresses the low click-through rate by
+       making the CTA more visible with larger size,
+       stronger color contrast, and an icon.
+    ```
+  </Tab>
+</Tabs>
+
+### Live Streaming
+
+Sessions stream logs in real-time using Server-Sent Events:
+
+```typescript
+// In dashboard code
+const eventSource = new EventSource(
+  `http://localhost:3002/api/stream/${sessionId}`
+);
+
+eventSource.addEventListener('think', (e) => {
+  const data = JSON.parse(e.data);
+  addLog('💭', data.message);
+});
+
+eventSource.addEventListener('action', (e) => {
+  const data = JSON.parse(e.data);
+  addLog('🔧', data.message);
+});
+
+eventSource.addEventListener('status', (e) => {
+  const data = JSON.parse(e.data);
+  updateStatus(data.status);
+});
+
+eventSource.addEventListener('result', (e) => {
+  const data = JSON.parse(e.data);
+  showResult(data);
+  eventSource.close();
+});
+```
+
+### Sessions List
+
+**URL**: `/sessions`
+
+Shows all sessions with:
+- Session ID
+- Status indicator
+- Website URL
+- Task (truncated)
+- Steps progress
+- Created time
+- Duration
+
+**Filterable by**:
+- Status (all, running, completed, error)
+- Date range
+- Website
+
+**Sortable by**:
+- Created time (newest/oldest)
+- Duration
+- Steps taken
+
+### Evolution Sessions
+
+Sessions marked `isEvolution: true` show additional UI:
+
+- **Analysis Summary** - UX problems found
+- **Code Changes** - Generated modifications
+- **Before/After** - Visual diff (if available)
+
+**Example**:
+
+```
+🧬 Evolution Session
+
+Analysis:
+• Found 2 UX issues
+• Confidence: 85%
+
+Problems:
+1. [high] Sign-up CTA lacks prominence
+2. [medium] Password requirements unclear
+
+Changes:
+• Modified: app/components/HeroSection.tsx
+  "Increased button size and added icon"
+```
+
+## Configuration Management
+
+### Load Config
+
+Fetch current `darwin.config.json`:
+
+```bash
+GET http://localhost:3002/api/config
+```
+
+Displayed in settings panel for editing.
+
+### Edit Config
+
+Dashboard provides form to edit:
+- Website URL
+- Task description
+- Model selection
+- Max steps
+- Environment
+- Verbosity
+
+<Note>
+Config changes are saved to `darwin.config.json` for future CLI runs.
+</Note>
+
+## Task Templates
+
+The dashboard includes common task templates:
+
+<CardGroup cols={2}>
+  <Card title="Sign Up Flow">
+    "Click sign up, fill out the registration form, and complete email verification"
+  </Card>
+  <Card title="Checkout Process">
+    "Add items to cart, proceed to checkout, and fill shipping information"
+  </Card>
+  <Card title="Contact Form">
+    "Navigate to contact page, fill out the form, and submit"
+  </Card>
+  <Card title="Search & Filter">
+    "Use the search to find products, apply filters, and view details"
+  </Card>
+</CardGroup>
+
+Click a template to auto-fill the task field.
+
+## Analytics Integration
+
+If your app sends analytics to the demo app endpoint, the dashboard can:
+
+- Display event counts
+- Show event timeline
+- Visualize user journey
+- Correlate events with agent thoughts
+
+**Example Event Timeline**:
+
+```
+10:30:15 ● session_started
+10:30:16 ● page_view (/)
+10:30:17 ● button_click (Sign Up)
+10:30:18 ● page_view (/signup)
+10:30:19 ● form_submit
+10:30:20 ● session_ended
+```
+
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Cmd/Ctrl + K` | Open command palette |
+| `Cmd/Ctrl + N` | New agent |
+| `Cmd/Ctrl + S` | View sessions |
+| `Cmd/Ctrl + E` | Run evolution |
+| `Esc` | Close modals |
+
+## API Client
+
+The dashboard uses a centralized API client:
+
+```typescript
+// lib/api-client.ts
+const API_BASE = 'http://localhost:3002/api';
+
+export const apiClient = {
+  async getStatus() {
+    const res = await fetch(`${API_BASE}/status`);
+    return res.json();
+  },
+  
+  async getConfig() {
+    const res = await fetch(`${API_BASE}/config`);
+    return res.json();
+  },
+  
+  async runAgent(config) {
+    const res = await fetch(`${API_BASE}/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config)
+    });
+    return res.json();
+  },
+  
+  async getSession(sessionId) {
+    const res = await fetch(`${API_BASE}/session/${sessionId}`);
+    return res.json();
+  },
+  
+  async getSessions() {
+    const res = await fetch(`${API_BASE}/sessions`);
+    return res.json();
+  },
+  
+  streamSession(sessionId, callbacks) {
+    const eventSource = new EventSource(`${API_BASE}/stream/${sessionId}`);
+    
+    Object.entries(callbacks).forEach(([event, handler]) => {
+      eventSource.addEventListener(event, (e) => {
+        handler(JSON.parse(e.data));
+      });
+    });
+    
+    return eventSource;
+  }
+};
+```
+
+## Customization
+
+### Theme
+
+The dashboard uses Tailwind CSS with a purple theme:
+
+```javascript
+// tailwind.config.js
+theme: {
+  extend: {
+    colors: {
+      primary: '#8B5CF6',
+      'primary-light': '#A78BFA',
+      'primary-dark': '#7C3AED'
+    }
+  }
+}
+```
+
+### Components
+
+Key components in `dashboard/app/components/`:
+
+- `SessionCard.tsx` - Session preview card
+- `LogViewer.tsx` - Real-time log display
+- `ThoughtsList.tsx` - Thought entries
+- `MetricsCard.tsx` - Metric display
+- `AgentForm.tsx` - Run agent form
+
+## Deployment
+
+### Build for Production
+
+```bash
+cd packages/darwin-sdk/dashboard
+npm run build
+npm run start
+```
+
+Runs on port 3001 by default.
+
+### Environment Variables
+
+```bash .env.local
+NEXT_PUBLIC_API_URL=http://localhost:3002
+```
+
+Update `NEXT_PUBLIC_API_URL` to point to your API server.
+
+### Docker
+
+```dockerfile
+FROM node:20-alpine AS base
+
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+
+COPY . .
+RUN npm run build
+
+EXPOSE 3001
+CMD ["npm", "run", "start"]
+```
+
+```bash
+docker build -t darwin-dashboard .
+docker run -p 3001:3001 darwin-dashboard
+```
+
+## Troubleshooting
+
+### Dashboard shows "API Offline"
+
+- Check that Express API is running on port 3002
+- Verify `NEXT_PUBLIC_API_URL` is correct
+- Check for CORS errors in browser console
+
+### Sessions not streaming
+
+- Ensure SSE is not blocked by proxy/firewall
+- Check browser DevTools Network tab for EventSource connection
+- Verify API endpoint returns `Content-Type: text/event-stream`
+
+### Metrics not updating
+
+- Refresh the page
+- Check `/api/metrics` endpoint directly
+- Verify sessions are being tracked correctly
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="API Server" icon="server" href="/guides/api-server">
+    Learn about the backend API
+  </Card>
+  <Card title="Evolution Pipeline" icon="dna" href="/concepts/evolution-pipeline">
+    Run evolution through the dashboard
+  </Card>
+  <Card title="Analytics" icon="chart-line" href="/concepts/analytics-tracking">
+    Integrate analytics tracking
+  </Card>
+  <Card title="Examples" icon="lightbulb" href="/examples/ui-evolution">
+    See dashboard usage examples
+  </Card>
+</CardGroup>

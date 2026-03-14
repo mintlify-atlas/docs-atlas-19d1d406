@@ -1,0 +1,378 @@
+---
+title: 'POST /api/evolve'
+description: 'Run the full evolution pipeline: analyze and improve UX'
+api: 'POST /api/evolve'
+---
+
+## Endpoint
+
+```
+POST /api/evolve
+```
+
+Executes the complete Darwin evolution pipeline:
+1. Runs a browser agent to collect user behavior and thoughts
+2. Loads analytics events from the target application
+3. Analyzes the data with Gemini AI to identify UX issues
+4. Generates code changes with Claude to fix the highest priority issue
+
+This endpoint runs asynchronously and returns a session ID for monitoring progress.
+
+## Request Body
+
+<ParamField body="website" type="string" required>
+  The URL to navigate to (typically your app's URL)
+</ParamField>
+
+<ParamField body="task" type="string" required>
+  Description of the user task to execute (e.g., "Sign up for an account")
+</ParamField>
+
+<ParamField body="targetAppPath" type="string">
+  Path to the application codebase to modify. Defaults to `../../demo-app`
+</ParamField>
+
+<ParamField body="model" type="string" default="google/gemini-3-flash-preview">
+  AI model to use for task execution
+</ParamField>
+
+<ParamField body="maxSteps" type="number" default={20}>
+  Maximum number of steps the agent can take
+</ParamField>
+
+<ParamField body="env" type="string" default="LOCAL">
+  Environment to run the browser in: `LOCAL` or `BROWSERBASE`
+</ParamField>
+
+<ParamField body="apiKey" type="string">
+  BrowserBase API key (required if env is BROWSERBASE)
+</ParamField>
+
+<ParamField body="projectId" type="string">
+  BrowserBase project ID (required if env is BROWSERBASE)
+</ParamField>
+
+<ParamField body="systemPrompt" type="string">
+  Custom system prompt for the AI agent
+</ParamField>
+
+<ParamField body="thinkingFormat" type="string">
+  Instructions for how the agent should format its thinking
+</ParamField>
+
+## Response
+
+<ResponseField name="sessionId" type="string">
+  Unique identifier for this evolution session
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Initial status, typically "started"
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Human-readable status message
+</ResponseField>
+
+<ResponseField name="config" type="object">
+  Echo of the configuration
+  
+  <Expandable title="Config Properties">
+    <ResponseField name="website" type="string">
+      The website URL
+    </ResponseField>
+    
+    <ResponseField name="task" type="string">
+      The task description
+    </ResponseField>
+    
+    <ResponseField name="targetAppPath" type="string">
+      Path to the app being modified
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Examples
+
+<CodeGroup>
+```bash cURL
+curl -X POST http://localhost:3002/api/evolve \
+  -H "Content-Type: application/json" \
+  -d '{
+    "website": "http://localhost:3000",
+    "task": "Try to sign up for an account",
+    "targetAppPath": "/path/to/my-app",
+    "maxSteps": 15
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('http://localhost:3002/api/evolve', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    website: 'http://localhost:3000',
+    task: 'Complete the checkout process',
+    targetAppPath: './my-app',
+    maxSteps: 20
+  })
+});
+
+const data = await response.json();
+console.log('Evolution session:', data.sessionId);
+
+// Stream the evolution progress
+const eventSource = new EventSource(
+  `http://localhost:3002/api/stream/${data.sessionId}`
+);
+
+eventSource.addEventListener('status', (e) => {
+  const data = JSON.parse(e.data);
+  console.log('Status:', data.message);
+});
+
+eventSource.addEventListener('think', (e) => {
+  const data = JSON.parse(e.data);
+  console.log('Analysis:', data.message);
+});
+
+eventSource.addEventListener('changes', (e) => {
+  const data = JSON.parse(e.data);
+  console.log('Code changes:', data.changes);
+});
+
+eventSource.addEventListener('result', (e) => {
+  const data = JSON.parse(e.data);
+  console.log('Complete:', data.message);
+  eventSource.close();
+});
+```
+
+```python Python
+import requests
+import json
+
+response = requests.post(
+    'http://localhost:3002/api/evolve',
+    headers={'Content-Type': 'application/json'},
+    json={
+        'website': 'http://localhost:3000',
+        'task': 'Navigate to pricing and compare plans',
+        'targetAppPath': './my-app',
+        'maxSteps': 15
+    }
+)
+
+data = response.json()
+session_id = data['sessionId']
+print(f"Evolution started: {session_id}")
+
+# Poll for completion
+import time
+while True:
+    status = requests.get(
+        f'http://localhost:3002/api/session/{session_id}'
+    ).json()
+    
+    print(f"Status: {status['status']}")
+    
+    if status['status'] in ['completed', 'error']:
+        if status.get('changes'):
+            print(f"Changes: {status['changes']}")
+        break
+    
+    time.sleep(2)
+```
+</CodeGroup>
+
+## Response Examples
+
+```json 200 Success
+{
+  "sessionId": "evolution-xyz789-abc123",
+  "status": "started",
+  "message": "Evolution pipeline started",
+  "config": {
+    "website": "http://localhost:3000",
+    "task": "Try to sign up for an account",
+    "targetAppPath": "./my-app"
+  }
+}
+```
+
+```json 400 Bad Request
+{
+  "error": "Both 'website' and 'task' are required"
+}
+```
+
+```json 500 Server Error
+{
+  "error": "GEMINI_API_KEY or GOOGLE_API_KEY environment variable is required"
+}
+```
+
+## Evolution Pipeline Stages
+
+When monitoring via SSE, you'll see these stages:
+
+### Stage 1: Running Browser Agent
+
+```json Status Event
+{
+  "status": "running",
+  "message": "Step 1: Running browser agent..."
+}
+```
+
+The agent navigates your app and completes the task while capturing thoughts and actions.
+
+### Stage 2: Loading Analytics
+
+```json Status Event
+{
+  "status": "running",
+  "message": "Step 2: Loading analytics events..."
+}
+```
+
+Loads analytics events from `events.json` or `saved-events.json` in your app directory.
+
+### Stage 3: Analyzing with Gemini
+
+```json Status Event
+{
+  "status": "running",
+  "message": "Step 3: Analyzing data with Gemini..."
+}
+```
+
+```json Think Event
+{
+  "message": "Summary: Found confusing signup button placement..."
+}
+```
+
+Gemini analyzes the data and identifies UX issues.
+
+### Stage 4: Evolving Codebase
+
+```json Status Event
+{
+  "status": "running",
+  "message": "Step 4: Evolving codebase with Claude..."
+}
+```
+
+```json Log Events (Claude CLI output)
+{
+  "message": "Reading components/SignupButton.tsx..."
+}
+```
+
+Claude generates and applies code changes.
+
+### Stage 5: Complete
+
+```json Changes Event
+{
+  "changes": [
+    {
+      "id": "signup-btn-visibility",
+      "component": "SignupButton",
+      "description": "Increased button contrast and size",
+      "type": "modified",
+      "file": "components/SignupButton.tsx",
+      "explanation": "This addresses the low visibility issue..."
+    }
+  ]
+}
+```
+
+```json Result Event
+{
+  "success": true,
+  "message": "Evolution pipeline completed - 12 thoughts, 45 events, 1 issues fixed"
+}
+```
+
+## Session Data Structure
+
+When you query the session via `GET /api/session/:sessionId`, you'll get:
+
+```json Evolution Session
+{
+  "id": "evolution-xyz789",
+  "status": "completed",
+  "config": {
+    "website": "http://localhost:3000",
+    "task": "Sign up for account",
+    "maxSteps": 20
+  },
+  "steps": 8,
+  "maxSteps": 20,
+  "result": {
+    "success": true,
+    "message": "Evolution pipeline completed - 12 thoughts, 45 events, 1 issues fixed"
+  },
+  "isEvolution": true,
+  "changes": [
+    {
+      "id": "signup-visibility",
+      "component": "SignupButton",
+      "description": "Improved button contrast",
+      "type": "modified",
+      "file": "components/SignupButton.tsx",
+      "explanation": "Addressed low visibility by increasing contrast ratio to WCAG AA standards"
+    }
+  ],
+  "createdAt": "2024-03-14T10:00:00Z",
+  "completedAt": "2024-03-14T10:05:30Z",
+  "logsCount": 156
+}
+```
+
+## Prerequisites
+
+Before using the evolution endpoint, ensure:
+
+1. **Analytics are configured** in your target application:
+   ```javascript
+   // Your app should track events to events.json
+   fetch('/api/events', {
+     method: 'POST',
+     body: JSON.stringify({
+       event: 'button_click',
+       element: 'signup-button',
+       timestamp: Date.now()
+     })
+   });
+   ```
+
+2. **Environment variables are set**:
+   ```bash
+   export GEMINI_API_KEY="your-gemini-api-key"
+   # or
+   export GOOGLE_API_KEY="your-google-api-key"
+   ```
+
+3. **Claude CLI is installed** (for code generation):
+   ```bash
+   npm install -g @anthropic-ai/claude-cli
+   ```
+
+## Best Practices
+
+- Use realistic user tasks that match actual user flows
+- Ensure your analytics capture meaningful user interactions
+- Review generated code changes before deploying to production
+- Run evolution during development, not in production
+- Use version control to track automated changes
+- Set appropriate `maxSteps` based on task complexity
+
+## Related Endpoints
+
+- [POST /api/run](/api/endpoints/run) - Run browser agent only
+- [GET /api/stream/:sessionId](/api/endpoints/sessions#stream-session-logs) - Stream progress
+- [GET /api/session/:sessionId](/api/endpoints/sessions#get-session) - Get session details
+- [GET /api/sessions](/api/endpoints/sessions#list-sessions) - List all sessions

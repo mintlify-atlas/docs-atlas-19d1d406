@@ -1,97 +1,158 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "Darwin"
+description: "AI-powered browser automation that evolves your UI/UX based on real user behavior"
 ---
 
-## Setting up
+## Welcome to Darwin
 
-Get your documentation site up and running in minutes.
+Darwin is an AI-powered browser automation framework built on Stagehand that not only automates web interactions but also observes user behavior, analyzes friction points, and automatically evolves your UI/UX to create better experiences.
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
+<CardGroup cols={2}>
   <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
+    title="Quickstart"
+    icon="rocket"
+    href="/quickstart"
   >
-    Edit your docs locally and preview them in real time.
+    Get up and running with Darwin in under 5 minutes
   </Card>
   <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
+    title="Core Concepts"
+    icon="brain"
+    href="/concepts/architecture"
   >
-    Customize the design and colors of your site to match your brand.
-  </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+    Understand how Darwin's evolution pipeline works
   </Card>
   <Card
-    title="API documentation"
+    title="CLI Reference"
     icon="terminal"
-    href="/api-reference/introduction"
+    href="/cli/run"
   >
-    Auto-generate API documentation from OpenAPI specifications.
-  </Card>
-</Columns>
-
-## Create beautiful pages
-
-Everything you need to create world-class documentation.
-
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
+    Complete command-line interface documentation
   </Card>
   <Card
-    title="Code samples"
+    title="API Reference"
     icon="code"
-    href="/essentials/code"
+    href="/api/browser-agent"
   >
-    Add sample code to demonstrate how to use your product.
+    Integrate Darwin into your applications
+  </Card>
+</CardGroup>
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card
+    title="AI-Powered Automation"
+    icon="wand-magic-sparkles"
+  >
+    Human-like browser navigation powered by advanced AI models including Gemini, Claude, and OpenAI
   </Card>
   <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
+    title="Self-Evolving UI/UX"
+    icon="arrow-trend-up"
   >
-    Display images and other media.
+    Automatically identifies and fixes user experience issues based on real interaction analytics
   </Card>
   <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
+    title="Multiple Modes"
+    icon="layer-group"
   >
-    Write once and reuse across your docs.
+    Use via CLI, programmatic API, or HTTP server with real-time dashboard monitoring
   </Card>
-</Columns>
+  <Card
+    title="Visual Intelligence"
+    icon="eye"
+  >
+    Hybrid DOM and coordinate-based automation with reasoning, timing, and analytics overlays
+  </Card>
+</CardGroup>
 
-## Need inspiration?
+## Quick Example
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+Get started with a simple automation task:
+
+<CodeGroup>
+
+```bash CLI
+# Initialize configuration
+darwin init
+
+# Run an automation task
+darwin run --website "https://example.com" --task "Find the contact page"
+```
+
+```typescript Programmatic
+import { BrowserAgent } from 'darwin-ui';
+
+const agent = new BrowserAgent({
+  website: 'https://example.com',
+  task: 'Find the contact page',
+  model: 'google/gemini-3-flash-preview',
+  maxSteps: 20
+});
+
+await agent.init();
+const result = await agent.execute();
+await agent.close();
+```
+
+```bash HTTP API
+# Start the Darwin API server
+cd packages/darwin-sdk/core
+npm run start:dev
+
+# Run automation via API
+curl -X POST http://localhost:3002/api/run \
+  -H "Content-Type: application/json" \
+  -d '{
+    "website": "https://example.com",
+    "task": "Find the contact page"
+  }'
+```
+
+</CodeGroup>
+
+## Evolution Pipeline
+
+Darwin's unique capability is its evolution pipeline that transforms user behavior into UI improvements:
+
+<Steps>
+  <Step title="Observe">
+    Darwin automates tasks while capturing detailed analytics about user interactions, pain points, and behavior patterns
+  </Step>
+  <Step title="Analyze">
+    The Analyst engine processes interaction data and identifies UX issues, friction points, and optimization opportunities
+  </Step>
+  <Step title="Evolve">
+    AI-powered code generation automatically implements UI/UX improvements to address identified issues
+  </Step>
+  <Step title="Iterate">
+    Continuous monitoring and improvement cycles create progressively better user experiences
+  </Step>
+</Steps>
+
+## Learn More
+
+<CardGroup cols={3}>
+  <Card
+    title="Installation"
+    icon="download"
+    href="/installation"
+  >
+    Set up Darwin in your project
+  </Card>
+  <Card
+    title="Configuration"
+    icon="gear"
+    href="/guides/configuration"
+  >
+    Configure models, environments, and settings
+  </Card>
+  <Card
+    title="Examples"
+    icon="book-open"
+    href="/examples/basic-automation"
+  >
+    Real-world use cases and workflows
+  </Card>
+</CardGroup>

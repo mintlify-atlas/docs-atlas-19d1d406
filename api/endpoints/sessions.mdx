@@ -1,0 +1,581 @@
+---
+title: 'Session Endpoints'
+description: 'Monitor and manage agent execution sessions'
+icon: 'list'
+---
+
+## Overview
+
+Darwin tracks each agent execution in a session. Sessions can be queried for status, logs, and results.
+
+## GET /api/session/:sessionId
+
+Retrieves detailed information about a specific session.
+
+### Parameters
+
+<ParamField path="sessionId" type="string" required>
+  The unique session identifier returned from `/api/run` or `/api/evolve`
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="string">
+  Session identifier
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Current session status: `initializing`, `running`, `completed`, or `error`
+</ResponseField>
+
+<ResponseField name="config" type="object">
+  Session configuration
+  
+  <Expandable title="Config Properties">
+    <ResponseField name="website" type="string">
+      Target website URL
+    </ResponseField>
+    
+    <ResponseField name="task" type="string">
+      Task description
+    </ResponseField>
+    
+    <ResponseField name="maxSteps" type="number">
+      Maximum steps allowed
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="steps" type="number">
+  Number of steps completed so far
+</ResponseField>
+
+<ResponseField name="maxSteps" type="number">
+  Maximum steps configured
+</ResponseField>
+
+<ResponseField name="result" type="object" optional>
+  Final result (only present when completed)
+  
+  <Expandable title="Result Properties">
+    <ResponseField name="success" type="boolean">
+      Whether the task succeeded
+    </ResponseField>
+    
+    <ResponseField name="message" type="string">
+      Result message
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="error" type="string" optional>
+  Error message (only present if status is error)
+</ResponseField>
+
+<ResponseField name="createdAt" type="string">
+  ISO 8601 timestamp of session creation
+</ResponseField>
+
+<ResponseField name="completedAt" type="string" optional>
+  ISO 8601 timestamp of completion (only if completed)
+</ResponseField>
+
+<ResponseField name="logsCount" type="number">
+  Total number of log entries
+</ResponseField>
+
+<ResponseField name="isEvolution" type="boolean">
+  Whether this is an evolution session (from `/api/evolve`)
+</ResponseField>
+
+<ResponseField name="changes" type="array" optional>
+  Code changes made (only for evolution sessions)
+</ResponseField>
+
+### Examples
+
+<CodeGroup>
+```bash cURL
+curl http://localhost:3002/api/session/abc123-def456
+```
+
+```javascript JavaScript
+const sessionId = 'abc123-def456';
+const response = await fetch(
+  `http://localhost:3002/api/session/${sessionId}`
+);
+const session = await response.json();
+
+console.log('Status:', session.status);
+console.log('Progress:', session.steps, '/', session.maxSteps);
+
+if (session.status === 'completed') {
+  console.log('Result:', session.result);
+} else if (session.status === 'error') {
+  console.error('Error:', session.error);
+}
+```
+
+```python Python
+import requests
+
+session_id = 'abc123-def456'
+response = requests.get(
+    f'http://localhost:3002/api/session/{session_id}'
+)
+session = response.json()
+
+print(f"Status: {session['status']}")
+print(f"Progress: {session['steps']}/{session['maxSteps']}")
+```
+</CodeGroup>
+
+### Response Examples
+
+```json 200 Running Session
+{
+  "id": "abc123-def456",
+  "status": "running",
+  "config": {
+    "website": "https://example.com",
+    "task": "Click the sign up button",
+    "maxSteps": 20
+  },
+  "steps": 5,
+  "maxSteps": 20,
+  "createdAt": "2024-03-14T10:00:00Z",
+  "logsCount": 42,
+  "isEvolution": false,
+  "changes": []
+}
+```
+
+```json 200 Completed Session
+{
+  "id": "abc123-def456",
+  "status": "completed",
+  "config": {
+    "website": "https://example.com",
+    "task": "Click the sign up button",
+    "maxSteps": 20
+  },
+  "steps": 8,
+  "maxSteps": 20,
+  "result": {
+    "success": true,
+    "message": "Task completed successfully"
+  },
+  "createdAt": "2024-03-14T10:00:00Z",
+  "completedAt": "2024-03-14T10:02:30Z",
+  "logsCount": 87,
+  "isEvolution": false,
+  "changes": []
+}
+```
+
+```json 200 Evolution Session with Changes
+{
+  "id": "evolution-xyz789",
+  "status": "completed",
+  "config": {
+    "website": "http://localhost:3000",
+    "task": "Sign up for account",
+    "maxSteps": 20
+  },
+  "steps": 12,
+  "maxSteps": 20,
+  "result": {
+    "success": true,
+    "message": "Evolution pipeline completed - 12 thoughts, 45 events, 1 issues fixed"
+  },
+  "isEvolution": true,
+  "changes": [
+    {
+      "id": "signup-btn-1",
+      "component": "SignupButton",
+      "description": "Increased button size and contrast",
+      "type": "modified",
+      "file": "components/SignupButton.tsx",
+      "explanation": "This addresses the low click-through rate on the signup button by making it more visible and accessible"
+    }
+  ],
+  "createdAt": "2024-03-14T10:00:00Z",
+  "completedAt": "2024-03-14T10:05:30Z",
+  "logsCount": 156
+}
+```
+
+```json 404 Not Found
+{
+  "error": "Session not found"
+}
+```
+
+---
+
+## GET /api/sessions
+
+Retrieves a list of all sessions.
+
+### Response
+
+Returns an array of session objects with the same structure as the single session endpoint.
+
+### Examples
+
+<CodeGroup>
+```bash cURL
+curl http://localhost:3002/api/sessions
+```
+
+```javascript JavaScript
+const response = await fetch('http://localhost:3002/api/sessions');
+const sessions = await response.json();
+
+console.log(`Total sessions: ${sessions.length}`);
+
+// Filter completed sessions
+const completed = sessions.filter(s => s.status === 'completed');
+console.log(`Completed: ${completed.length}`);
+
+// Find evolution sessions
+const evolutions = sessions.filter(s => s.isEvolution);
+console.log(`Evolution runs: ${evolutions.length}`);
+```
+
+```python Python
+import requests
+
+response = requests.get('http://localhost:3002/api/sessions')
+sessions = response.json()
+
+print(f"Total sessions: {len(sessions)}")
+
+# Filter by status
+completed = [s for s in sessions if s['status'] == 'completed']
+print(f"Completed: {len(completed)}")
+
+# Find evolution sessions
+evolutions = [s for s in sessions if s.get('isEvolution')]
+print(f"Evolution runs: {len(evolutions)}")
+```
+</CodeGroup>
+
+### Response Example
+
+```json 200 OK
+[
+  {
+    "id": "session-1",
+    "status": "completed",
+    "config": {
+      "website": "https://example.com",
+      "task": "Find pricing",
+      "maxSteps": 20
+    },
+    "steps": 5,
+    "maxSteps": 20,
+    "result": {
+      "success": true,
+      "message": "Task completed successfully"
+    },
+    "createdAt": "2024-03-14T09:00:00Z",
+    "completedAt": "2024-03-14T09:01:30Z",
+    "logsCount": 45,
+    "isEvolution": false,
+    "changes": []
+  },
+  {
+    "id": "session-2",
+    "status": "running",
+    "config": {
+      "website": "https://example.com",
+      "task": "Complete checkout",
+      "maxSteps": 25
+    },
+    "steps": 10,
+    "maxSteps": 25,
+    "createdAt": "2024-03-14T10:00:00Z",
+    "logsCount": 78,
+    "isEvolution": false,
+    "changes": []
+  }
+]
+```
+
+---
+
+## GET /api/stream/:sessionId
+
+Streams real-time session events using Server-Sent Events (SSE).
+
+### Parameters
+
+<ParamField path="sessionId" type="string" required>
+  The unique session identifier
+</ParamField>
+
+### Response
+
+Streams events in SSE format with the following event types:
+
+<ParamField path="status" type="event">
+  Session status changes
+  
+  ```json
+  {
+    "status": "running",
+    "sessionId": "abc123",
+    "message": "Status changed to: running"
+  }
+  ```
+</ParamField>
+
+<ParamField path="think" type="event">
+  Agent thinking/reasoning
+  
+  ```json
+  {
+    "message": "I see a sign up button in the header",
+    "timestamp": "2024-03-14T10:00:00Z"
+  }
+  ```
+</ParamField>
+
+<ParamField path="action" type="event">
+  Agent actions
+  
+  ```json
+  {
+    "message": "click",
+    "timestamp": "2024-03-14T10:00:01Z"
+  }
+  ```
+</ParamField>
+
+<ParamField path="log" type="event">
+  General log messages
+  
+  ```json
+  {
+    "message": "Navigating to page...",
+    "timestamp": "2024-03-14T10:00:02Z"
+  }
+  ```
+</ParamField>
+
+<ParamField path="changes" type="event">
+  Code changes (evolution sessions only)
+  
+  ```json
+  {
+    "changes": [
+      {
+        "id": "btn-1",
+        "component": "Button",
+        "description": "Updated styling",
+        "type": "modified",
+        "file": "components/Button.tsx",
+        "explanation": "Improved accessibility"
+      }
+    ]
+  }
+  ```
+</ParamField>
+
+<ParamField path="result" type="event">
+  Final result (closes stream after delay)
+  
+  ```json
+  {
+    "success": true,
+    "message": "Task completed successfully"
+  }
+  ```
+</ParamField>
+
+<ParamField path="error" type="event">
+  Error occurred
+  
+  ```json
+  {
+    "message": "Element not found"
+  }
+  ```
+</ParamField>
+
+### Examples
+
+<CodeGroup>
+```javascript JavaScript (EventSource)
+const sessionId = 'abc123-def456';
+const eventSource = new EventSource(
+  `http://localhost:3002/api/stream/${sessionId}`
+);
+
+eventSource.addEventListener('status', (e) => {
+  const data = JSON.parse(e.data);
+  console.log('Status:', data.status);
+});
+
+eventSource.addEventListener('think', (e) => {
+  const data = JSON.parse(e.data);
+  console.log('💭 Thinking:', data.message);
+});
+
+eventSource.addEventListener('action', (e) => {
+  const data = JSON.parse(e.data);
+  console.log('🔧 Action:', data.message);
+});
+
+eventSource.addEventListener('result', (e) => {
+  const data = JSON.parse(e.data);
+  console.log('✅ Result:', data);
+  eventSource.close();
+});
+
+eventSource.addEventListener('error', (e) => {
+  const data = JSON.parse(e.data);
+  console.error('❌ Error:', data.message);
+  eventSource.close();
+});
+```
+
+```python Python (SSE Client)
+import sseclient
+import requests
+import json
+
+session_id = 'abc123-def456'
+response = requests.get(
+    f'http://localhost:3002/api/stream/{session_id}',
+    stream=True
+)
+
+client = sseclient.SSEClient(response)
+
+for event in client.events():
+    data = json.loads(event.data)
+    
+    if event.event == 'status':
+        print(f"Status: {data['status']}")
+    elif event.event == 'think':
+        print(f"💭 {data['message']}")
+    elif event.event == 'action':
+        print(f"🔧 {data['message']}")
+    elif event.event == 'result':
+        print(f"✅ {data['message']}")
+        break
+    elif event.event == 'error':
+        print(f"❌ {data['message']}")
+        break
+```
+</CodeGroup>
+
+### Response Example (SSE Stream)
+
+```
+event: status
+data: {"status":"running","sessionId":"abc123","message":"Status changed to: running"}
+
+event: think
+data: {"message":"I see a sign up button in the header","timestamp":"2024-03-14T10:00:00Z"}
+
+event: action
+data: {"message":"click","timestamp":"2024-03-14T10:00:01Z"}
+
+event: think
+data: {"message":"Now I see a registration form","timestamp":"2024-03-14T10:00:02Z"}
+
+event: result
+data: {"success":true,"message":"Task completed successfully"}
+```
+
+---
+
+## GET /api/metrics
+
+Retrieve aggregate metrics across all sessions.
+
+### Response
+
+<ResponseField name="totalAgents" type="number">
+  Total number of agent sessions
+</ResponseField>
+
+<ResponseField name="agentsTrend" type="number">
+  Change in total agents (currently always 0)
+</ResponseField>
+
+<ResponseField name="activeSessions" type="number">
+  Number of currently running sessions
+</ResponseField>
+
+<ResponseField name="sessionsTrend" type="number">
+  Change in active sessions (currently always 0)
+</ResponseField>
+
+<ResponseField name="successRate" type="number">
+  Percentage of sessions that completed successfully
+</ResponseField>
+
+<ResponseField name="successTrend" type="number">
+  Change in success rate (currently always 0)
+</ResponseField>
+
+<ResponseField name="tasksCompleted" type="number">
+  Total number of completed tasks
+</ResponseField>
+
+<ResponseField name="tasksTrend" type="number">
+  Change in completed tasks (currently always 0)
+</ResponseField>
+
+### Examples
+
+<CodeGroup>
+```bash cURL
+curl http://localhost:3002/api/metrics
+```
+
+```javascript JavaScript
+const response = await fetch('http://localhost:3002/api/metrics');
+const metrics = await response.json();
+
+console.log(`Success Rate: ${metrics.successRate}%`);
+console.log(`Active Sessions: ${metrics.activeSessions}`);
+console.log(`Tasks Completed: ${metrics.tasksCompleted}`);
+```
+
+```python Python
+import requests
+
+response = requests.get('http://localhost:3002/api/metrics')
+metrics = response.json()
+
+print(f"Success Rate: {metrics['successRate']}%")
+print(f"Active Sessions: {metrics['activeSessions']}")
+print(f"Tasks Completed: {metrics['tasksCompleted']}")
+```
+</CodeGroup>
+
+### Response Example
+
+```json 200 OK
+{
+  "totalAgents": 47,
+  "agentsTrend": 0,
+  "activeSessions": 3,
+  "sessionsTrend": 0,
+  "successRate": 85,
+  "successTrend": 0,
+  "tasksCompleted": 40,
+  "tasksTrend": 0
+}
+```
+
+## See Also
+
+- [POST /api/run](/api/endpoints/run) - Start a new session
+- [POST /api/evolve](/api/endpoints/evolve) - Start an evolution session
+- [BrowserAgent](/api/browser-agent) - Agent class documentation

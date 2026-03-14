@@ -1,0 +1,165 @@
+---
+title: 'darwin init'
+description: 'Create a default configuration file for Darwin'
+icon: 'file-plus'
+---
+
+## Overview
+
+The `darwin init` command creates a new `darwin.config.json` configuration file with sensible defaults. This is the first command you should run when setting up a new Darwin project.
+
+## Syntax
+
+```bash
+darwin init [options]
+```
+
+## Options
+
+<ParamField path="config" type="string" default="darwin.config.json">
+  Path to the configuration file to create
+  
+  **Flag:** `-c, --config <path>`
+  
+  Allows you to specify a custom location or name for the configuration file.
+</ParamField>
+
+## Default Configuration
+
+Running `darwin init` creates a configuration file with the following defaults:
+
+```json darwin.config.json
+{
+  "website": "https://example.com",
+  "task": "Click the sign up button and fill out the registration form",
+  "model": "google/gemini-3-flash-preview",
+  "maxSteps": 20,
+  "env": "LOCAL",
+  "verbose": 1
+}
+```
+
+<Note>
+The default configuration uses Google's Gemini Flash model, which provides the best balance of speed and accuracy for browser automation tasks.
+</Note>
+
+## Usage Examples
+
+<CodeGroup>
+
+```bash Default Location
+darwin init
+# Creates darwin.config.json in the current directory
+```
+
+```bash Custom Location
+darwin init --config config/my-config.json
+# Creates my-config.json in the config/ directory
+```
+
+```bash Short Flag
+darwin init -c custom.json
+# Creates custom.json in the current directory
+```
+
+</CodeGroup>
+
+## What Happens Next
+
+After running `darwin init`, you should:
+
+<Steps>
+  <Step title="Edit the configuration file">
+    Open the generated `darwin.config.json` and update the `website` and `task` fields with your actual target website and automation task.
+  </Step>
+  
+  <Step title="Set up environment variables">
+    Configure your API keys in a `.env` file:
+    ```bash
+    GOOGLE_GENERATIVE_AI_API_KEY=your_key_here
+    ```
+  </Step>
+  
+  <Step title="Run your first automation">
+    Execute the automation with:
+    ```bash
+    darwin run
+    ```
+  </Step>
+</Steps>
+
+## Error Handling
+
+### File Already Exists
+
+If a configuration file already exists at the specified path, the command will fail with an error:
+
+```
+Error: Config file already exists: darwin.config.json
+```
+
+<Warning>
+The `init` command will not overwrite existing configuration files. If you need to reset your configuration, manually delete the existing file first or use a different path.
+</Warning>
+
+## Configuration Fields Explained
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `website` | `string` | The URL where the automation should start |
+| `task` | `string` | Natural language description of what the agent should do |
+| `model` | `string` | The AI model to use for decision-making |
+| `maxSteps` | `number` | Maximum number of actions the agent can take |
+| `env` | `"LOCAL"` \| `"BROWSERBASE"` | Execution environment |
+| `verbose` | `0` \| `1` \| `2` | Logging level (0=errors, 1=info, 2=debug) |
+
+## Related Commands
+
+<CardGroup cols={2}>
+  <Card title="darwin config" icon="gear" href="/cli/config">
+    Modify configuration values after initialization
+  </Card>
+  
+  <Card title="darwin run" icon="play" href="/cli/run">
+    Execute automation with the initialized configuration
+  </Card>
+</CardGroup>
+
+## Tips
+
+<Tip>
+**Multiple Configurations**: You can create multiple configuration files for different automation tasks:
+
+```bash
+darwin init --config login.config.json
+darwin init --config signup.config.json
+darwin init --config checkout.config.json
+```
+
+Then run them with:
+```bash
+darwin run --config login.config.json
+```
+</Tip>
+
+## Troubleshooting
+
+### Permission Denied
+
+If you encounter a permission error, ensure you have write access to the target directory:
+
+```bash
+ls -la
+# Check directory permissions
+```
+
+### Command Not Found
+
+If `darwin` command is not found, ensure you've installed the package:
+
+```bash
+npm install -g darwin-sdk
+# Or run from the package directory:
+cd packages/darwin-sdk
+npm start init
+```

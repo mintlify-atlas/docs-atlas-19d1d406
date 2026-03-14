@@ -1,0 +1,298 @@
+---
+title: Installation
+description: Set up Darwin and configure your development environment
+---
+
+## System Requirements
+
+<Info>
+Darwin is built for Node.js 20 and uses modern JavaScript features. Make sure your environment is up to date.
+</Info>
+
+- **Node.js**: Version 20 or higher (see `.nvmrc` in the project root)
+- **npm**: Version 9 or higher (comes with Node.js)
+- **Browser**: Chrome or Chromium (for LOCAL mode)
+- **OS**: macOS, Linux, or Windows with WSL
+
+### Check Your Node Version
+
+```bash
+node --version
+# Should show v20.x.x or higher
+```
+
+If you need to install or update Node.js, use [nvm](https://github.com/nvm-sh/nvm):
+
+```bash
+nvm install 20
+nvm use 20
+```
+
+## Installation Methods
+
+### Method 1: Clone the Repository
+
+For development and contributing:
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/petersenmatthew/darwin.git
+    cd darwin
+    ```
+  </Step>
+
+  <Step title="Install dependencies">
+    From the root directory:
+    ```bash
+    npm install
+    ```
+
+    This installs dependencies for all packages in the monorepo.
+  </Step>
+
+  <Step title="Build the SDK (optional)">
+    ```bash
+    cd packages/darwin-sdk
+    npm run build
+    ```
+
+    Or skip building and use dev mode:
+    ```bash
+    npm run dev init
+    npm run dev run
+    ```
+  </Step>
+</Steps>
+
+### Method 2: Use in an Existing Project
+
+<Warning>
+Darwin is currently designed as a monorepo package. Publishing to npm is planned for future releases.
+</Warning>
+
+For now, you can reference the package locally:
+
+```bash
+# In your project
+npm install /path/to/darwin/packages/darwin-sdk
+```
+
+## Environment Setup
+
+### Required API Keys
+
+Darwin needs an API key for the AI model you choose. You only need **one** of these:
+
+<Tabs>
+  <Tab title="Google Gemini">
+    **Recommended for best results**
+
+    1. Get a free API key at [ai.google.dev](https://ai.google.dev)
+    2. Add to your `.env` file:
+
+    ```bash .env
+    GOOGLE_GENERATIVE_AI_API_KEY=your_key_here
+    # OR
+    GEMINI_API_KEY=your_key_here
+    ```
+
+    <Tip>
+    Gemini Flash 3 offers the best balance of speed and accuracy for hybrid mode.
+    </Tip>
+  </Tab>
+
+  <Tab title="Anthropic Claude">
+    1. Get an API key from [console.anthropic.com](https://console.anthropic.com)
+    2. Add to your `.env` file:
+
+    ```bash .env
+    ANTHROPIC_API_KEY=your_key_here
+    ```
+
+    Recommended models:
+    - `anthropic/claude-sonnet-4-5-20250929`
+    - `anthropic/claude-haiku-4-5-20251001`
+  </Tab>
+
+  <Tab title="OpenAI">
+    1. Get an API key from [platform.openai.com](https://platform.openai.com)
+    2. Add to your `.env` file:
+
+    ```bash .env
+    OPENAI_API_KEY=your_key_here
+    ```
+
+    <Note>
+    OpenAI models work but Gemini is recommended for better cost/performance.
+    </Note>
+  </Tab>
+</Tabs>
+
+### Optional: Browserbase (Cloud Browser)
+
+For running browsers in the cloud instead of locally:
+
+```bash .env
+BROWSERBASE_API_KEY=your_browserbase_api_key
+BROWSERBASE_PROJECT_ID=your_project_id
+```
+
+Then set `"env": "BROWSERBASE"` in your `darwin.config.json`.
+
+<Warning>
+BROWSERBASE mode doesn't support headful browsers or visual overlays.
+</Warning>
+
+### Environment File Location
+
+Create `.env` in one of these locations:
+
+1. **Recommended**: `packages/darwin-sdk/.env` (package-level)
+2. **Alternative**: Root directory `.env` (monorepo-level)
+
+The CLI automatically loads environment variables from both locations.
+
+## Verify Installation
+
+<Steps>
+  <Step title="Check CLI availability">
+    ```bash
+    cd packages/darwin-sdk
+    npm run dev -- --version
+    # Should show: 0.0.1
+    ```
+  </Step>
+
+  <Step title="Create test configuration">
+    ```bash
+    npm run dev init
+    ```
+
+    Should create `darwin.config.json` in the current directory.
+  </Step>
+
+  <Step title="Run a simple test">
+    Edit `darwin.config.json`:
+
+    ```json
+    {
+      "website": "https://example.com",
+      "task": "Find the 'More information' link and click it",
+      "model": "google/gemini-3-flash-preview",
+      "maxSteps": 5
+    }
+    ```
+
+    Then run:
+
+    ```bash
+    npm run dev run
+    ```
+
+    A browser should open and the agent should complete the task.
+  </Step>
+</Steps>
+
+## Running the Full Stack
+
+Darwin includes multiple components:
+
+### 1. Demo App (Test Target)
+
+A Next.js e-commerce site for testing:
+
+```bash
+cd packages/demo-app
+npm run dev
+# Runs on http://localhost:3000
+```
+
+### 2. Express API + Dashboard
+
+From the **root directory**:
+
+```bash
+npm run start:services
+```
+
+This runs:
+- **Express API** on port 3002 (backend for agents)
+- **Dashboard** on port 3001 (UI for managing agents)
+
+### 3. Darwin SDK CLI
+
+For command-line automation:
+
+```bash
+cd packages/darwin-sdk
+npm run dev run
+```
+
+### All Together
+
+To run everything at once:
+
+```bash
+# Terminal 1: Demo app
+cd packages/demo-app && npm run dev
+
+# Terminal 2: Services (API + Dashboard)
+npm run start:services
+
+# Terminal 3: SDK
+cd packages/darwin-sdk && npm run dev run
+```
+
+Or use the convenience script from root:
+
+```bash
+npm run run-sdk-on-demo
+```
+
+## Troubleshooting
+
+### Module not found errors
+
+```bash
+# Clean install
+rm -rf node_modules package-lock.json
+npm install
+```
+
+### TypeScript errors
+
+```bash
+cd packages/darwin-sdk
+npm run build
+```
+
+### Browser won't launch
+
+- Install Chrome/Chromium
+- Check that you're using `"env": "LOCAL"` in config
+- Try running with `DEBUG=pw:browser` for verbose logs
+
+### API key not recognized
+
+- Check `.env` file location
+- Verify the environment variable name matches your model
+- Restart your terminal after editing `.env`
+- Try `source .env` or `export $(cat .env | xargs)`
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Run your first automation
+  </Card>
+  <Card title="Configuration" icon="gear" href="/guides/configuration">
+    Understand all config options
+  </Card>
+  <Card title="Architecture" icon="diagram-project" href="/concepts/architecture">
+    Learn how Darwin works
+  </Card>
+  <Card title="CLI Reference" icon="terminal" href="/guides/cli-usage">
+    Explore all commands
+  </Card>
+</CardGroup>

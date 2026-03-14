@@ -1,0 +1,474 @@
+---
+title: 'UI Evolution'
+description: 'Run the full evolution pipeline to automatically improve your UI'
+icon: 'wand-magic-sparkles'
+---
+
+## Overview
+
+The Darwin evolution pipeline is a powerful feature that combines browser automation, analytics analysis, and AI-powered code generation to automatically improve your user interface based on real user behavior.
+
+## The Evolution Pipeline
+
+The evolution workflow consists of three stages:
+
+<Steps>
+  <Step title="Agent Execution">
+    The browser agent navigates your site and captures:
+    - User thoughts and reasoning
+    - Interaction patterns
+    - UI friction points
+  </Step>
+
+  <Step title="Analytics Analysis">
+    The Analyst examines:
+    - Captured analytics events
+    - User thinking patterns
+    - Identified UX problems
+  </Step>
+
+  <Step title="Code Evolution">
+    Gemini automatically:
+    - Generates code improvements
+    - Applies changes to your codebase
+    - Documents modifications
+  </Step>
+</Steps>
+
+## Running the Evolution Pipeline
+
+### Basic Usage
+
+```bash
+cd packages/darwin-sdk
+npx darwin evolve
+```
+
+This command runs the full pipeline using your `darwin.config.json` settings.
+
+### With Custom Configuration
+
+```bash
+# Override target and settings
+npx darwin evolve \
+  --website "http://localhost:3000" \
+  --task "Complete the checkout process" \
+  --target "../my-app"
+```
+
+## Configuration
+
+### darwin.config.json
+
+Set up your evolution configuration:
+
+```json darwin.config.json
+{
+  "website": "http://localhost:3000",
+  "task": "Browse products, add to cart, and complete checkout",
+  "model": "google/gemini-3-flash-preview",
+  "maxSteps": 50,
+  "env": "LOCAL",
+  "verbose": 2
+}
+```
+
+<Note>
+The evolution pipeline works best with your local development server so changes can be immediately tested.
+</Note>
+
+### Target Application Path
+
+Specify where Darwin should apply code changes:
+
+```bash
+npx darwin evolve --target "../demo-app"
+```
+
+The target path should point to your application's root directory containing the source code.
+
+## Programmatic Usage
+
+For integration into your development workflow:
+
+```typescript
+import { BrowserAgent } from '@darwin/sdk/core/browser-agent';
+import { Analyst } from '@darwin/sdk/core/analyst';
+import * as fs from 'fs';
+import * as path from 'path';
+
+async function runEvolutionPipeline() {
+  const targetAppPath = path.resolve(__dirname, '../my-app');
+  const eventsFilePath = path.join(targetAppPath, 'events.json');
+  
+  // Step 1: Clear previous events
+  console.log('Clearing previous analytics...');
+  fs.writeFileSync(eventsFilePath, '[]', 'utf-8');
+  
+  // Step 2: Run browser agent
+  console.log('Running browser agent...');
+  const agent = new BrowserAgent({
+    website: 'http://localhost:3000',
+    task: 'Browse the site and complete a purchase',
+    model: 'google/gemini-3-flash-preview',
+    maxSteps: 50,
+    env: 'LOCAL',
+    verbose: 2,
+  });
+  
+  await agent.init();
+  let thoughts = [];
+  
+  try {
+    const { thoughts: capturedThoughts } = await agent.execute();
+    thoughts = capturedThoughts;
+    console.log(`Captured ${thoughts.length} thoughts`);
+  } finally {
+    await agent.close();
+  }
+  
+  // Step 3: Load analytics events
+  console.log('Loading analytics events...');
+  const events = JSON.parse(fs.readFileSync(eventsFilePath, 'utf-8'));
+  const analyticsSnapshot = { events: Array.isArray(events) ? events : [] };
+  console.log(`Loaded ${analyticsSnapshot.events.length} events`);
+  
+  // Step 4: Analyze with Analyst
+  console.log('Analyzing data...');
+  const analyst = new Analyst(targetAppPath);
+  const analysis = await analyst.analyze(analyticsSnapshot, thoughts);
+  
+  console.log('\nAnalysis Results:');
+  console.log(`Summary: ${analysis.summary}`);
+  console.log(`Issues found: ${analysis.mainProblems.length}`);
+  
+  analysis.mainProblems.forEach((problem, idx) => {
+    console.log(`\n${idx + 1}. [${problem.severity}] ${problem.affectedArea}`);
+    console.log(`   Hypothesis: ${problem.hypothesis}`);
+    console.log(`   Recommended: ${problem.recommendedAction}`);
+  });
+  
+  // Step 5: Evolve the codebase
+  if (analysis.mainProblems.length > 0) {
+    console.log('\nEvolving codebase...');
+    const evolutionResult = await analyst.evolve(analysis);
+    
+    console.log('\nEvolution complete!');
+    console.log('Changes applied:');
+    evolutionResult.changes?.forEach((change: any) => {
+      console.log(`  - ${change.type}: ${change.file}`);
+      console.log(`    ${change.description}`);
+    });
+    
+    return {
+      analysis,
+      changes: evolutionResult.changes || [],
+      success: true,
+    };
+  } else {
+    console.log('\nNo issues found - UI is optimal!');
+    return {
+      analysis,
+      changes: [],
+      success: true,
+    };
+  }
+}
+
+// Run the pipeline
+runEvolutionPipeline()
+  .then(result => {
+    console.log('\nPipeline completed successfully!');
+    process.exit(0);
+  })
+  .catch(error => {
+    console.error('Pipeline failed:', error);
+    process.exit(1);
+  });
+```
+
+## Understanding the Analysis
+
+### Analysis Output
+
+The Analyst returns structured insights:
+
+```json
+{
+  "summary": "User struggled to find the checkout button and experienced friction with the form validation.",
+  "mainProblems": [
+    {
+      "id": "checkout-visibility-001",
+      "severity": "high",
+      "evidence": [
+        "User thought: 'I expected the checkout button to be more prominent'",
+        "User spent 15 seconds scanning the page",
+        "Click event on checkout button only after multiple scrolls"
+      ],
+      "hypothesis": "Checkout button lacks visual hierarchy and is not immediately visible",
+      "recommendedAction": "Increase button size, use high-contrast color, position above the fold",
+      "affectedArea": "Cart page - Checkout CTA"
+    }
+  ],
+  "confidence": 0.85
+}
+```
+
+### Severity Levels
+
+- **Critical**: Blocking issues that prevent task completion
+- **High**: Significant friction affecting user experience
+- **Medium**: Minor usability improvements
+- **Low**: Nice-to-have enhancements
+
+## Generated Improvements
+
+### Change Format
+
+Darwin documents all changes in JSON format:
+
+```json
+{
+  "changes": [
+    {
+      "id": "checkout-button-enhancement",
+      "component": "CheckoutButton",
+      "description": "Increased button size and contrast for better visibility",
+      "type": "modified",
+      "file": "components/cart/CheckoutButton.tsx",
+      "explanation": "This addresses the low click-through rate on checkout by making the CTA more prominent. Analytics showed users spent 15+ seconds looking for the button."
+    }
+  ]
+}
+```
+
+### Code Changes Example
+
+Before evolution:
+
+```tsx components/cart/CheckoutButton.tsx
+export function CheckoutButton() {
+  return (
+    <button className="text-sm text-gray-600 border border-gray-300 px-3 py-1">
+      Checkout
+    </button>
+  );
+}
+```
+
+After evolution:
+
+```tsx components/cart/CheckoutButton.tsx
+export function CheckoutButton() {
+  return (
+    <button className="text-lg font-bold text-white bg-blue-600 hover:bg-blue-700 px-8 py-4 rounded-lg shadow-lg">
+      Proceed to Checkout
+    </button>
+  );
+}
+```
+
+## Iterating on Changes
+
+### Test and Refine
+
+<Steps>
+  <Step title="Review Generated Changes">
+    Examine the code modifications Darwin applied:
+    
+    ```bash
+    git diff
+    ```
+  </Step>
+
+  <Step title="Test the Improvements">
+    Run your development server and test the changes:
+    
+    ```bash
+    npm run dev
+    ```
+  </Step>
+
+  <Step title="Run Evolution Again">
+    Test if the changes resolved the issues:
+    
+    ```bash
+    npx darwin evolve
+    ```
+    
+    The agent will run the same task again and analyze if the problems persist.
+  </Step>
+
+  <Step title="Commit or Iterate">
+    If satisfied, commit the changes:
+    
+    ```bash
+    git add .
+    git commit -m "feat: improve checkout button visibility"
+    ```
+    
+    If issues remain, run the evolution pipeline again.
+  </Step>
+</Steps>
+
+### Multiple Iterations
+
+```typescript
+async function iterativeEvolution(maxIterations: number = 3) {
+  for (let i = 1; i <= maxIterations; i++) {
+    console.log(`\n=== Iteration ${i} ===`);
+    
+    const result = await runEvolutionPipeline();
+    
+    if (result.changes.length === 0) {
+      console.log('No changes needed - UI is optimized!');
+      break;
+    }
+    
+    console.log(`Applied ${result.changes.length} changes`);
+    
+    // Wait for manual review
+    console.log('\nReview changes and press Enter to continue...');
+    await new Promise(resolve => {
+      process.stdin.once('data', () => resolve(null));
+    });
+  }
+}
+```
+
+## Analytics Integration
+
+### Setting Up Analytics
+
+Darwin expects analytics events in `events.json`:
+
+```typescript app/api/events/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import fs from 'fs';
+import path from 'path';
+
+export async function POST(request: NextRequest) {
+  const event = await request.json();
+  
+  // Add timestamp if not present
+  if (!event.timestamp) {
+    event.timestamp = Date.now();
+  }
+  
+  // Load existing events
+  const eventsPath = path.join(process.cwd(), 'events.json');
+  let events = [];
+  
+  try {
+    const data = fs.readFileSync(eventsPath, 'utf-8');
+    events = JSON.parse(data);
+  } catch (error) {
+    // File doesn't exist yet
+  }
+  
+  // Append new event
+  events.push(event);
+  
+  // Save back to file
+  fs.writeFileSync(eventsPath, JSON.stringify(events, null, 2));
+  
+  return NextResponse.json({ success: true });
+}
+```
+
+### Tracked Events
+
+Darwin automatically tracks:
+- Page views
+- Click events
+- Form interactions
+- Session duration
+- Task completion
+
+## Best Practices
+
+<Tip>
+**Start Local**: Run evolution on your local development server to test changes immediately.
+</Tip>
+
+<Tip>
+**Clear Analytics**: Always clear `events.json` before starting a new evolution run to avoid stale data.
+</Tip>
+
+<Tip>
+**Review Changes**: Always review generated code changes before committing to production.
+</Tip>
+
+<Tip>
+**Iterate Gradually**: Run evolution multiple times with the same task to progressively improve the UI.
+</Tip>
+
+<Tip>
+**Use Version Control**: Commit your code before running evolution so you can easily revert if needed.
+</Tip>
+
+<Warning>
+The evolution pipeline modifies your source code. Always use version control and review changes before deploying.
+</Warning>
+
+## Advanced Configuration
+
+### Custom System Prompts
+
+Guide the evolution with custom prompts:
+
+```json darwin.config.json
+{
+  "website": "http://localhost:3000",
+  "task": "Complete checkout",
+  "systemPrompt": "You are testing an e-commerce checkout flow. Pay special attention to form validation, error messages, and button visibility. Critique anything that feels confusing or unclear."
+}
+```
+
+### Streaming Evolution Output
+
+```typescript
+const analyst = new Analyst(targetAppPath);
+
+const result = await analyst.evolve(analysis, (data, type) => {
+  if (type === 'stdout') {
+    process.stdout.write(data);
+  } else if (type === 'stderr') {
+    process.stderr.write(data);
+  }
+});
+```
+
+## Troubleshooting
+
+### No Issues Detected
+
+If the Analyst finds no problems:
+- Make the task more challenging
+- Increase `maxSteps` to allow more exploration
+- Add more specific critiques in the system prompt
+
+### Changes Not Applied
+
+Check:
+- Target path is correct
+- You have write permissions
+- Files are not currently open in an editor with unsaved changes
+
+### Evolution Fails
+
+Common causes:
+- Missing `GEMINI_API_KEY` environment variable
+- Insufficient `maxSteps` for complex tasks
+- Invalid target application path
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Custom Workflows" icon="diagram-project" href="/examples/custom-workflows">
+    Combine evolution with custom automation
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/browser-agent">
+    Explore the full API documentation
+  </Card>
+</CardGroup>

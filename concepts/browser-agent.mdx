@@ -1,0 +1,419 @@
+---
+title: Browser Agent
+description: Understanding how Darwin's AI-powered browser automation works
+---
+
+## Overview
+
+The `BrowserAgent` is Darwin's core automation engine. It combines AI reasoning with browser control to create agents that navigate websites like humans.
+
+<Info>
+BrowserAgent wraps [Stagehand V3](https://docs.stagehand.dev/) with Darwin-specific enhancements like thought capture, visual overlays, and analytics integration.
+</Info>
+
+## Hybrid Mode
+
+Darwin uses Stagehand's **hybrid mode**, which combines two approaches:
+
+<CardGroup cols={2}>
+  <Card title="DOM-based Actions" icon="code">
+    Traditional selector-based automation (fast and reliable)
+  </Card>
+  <Card title="Coordinate Actions" icon="crosshairs">
+    Vision-based clicking using screenshots (handles dynamic UIs)
+  </Card>
+</CardGroup>
+
+The AI model decides which approach to use based on the page structure:
+
+```typescript
+const agent = this.stagehand.agent({
+  mode: "hybrid",
+  model: "google/gemini-3-flash-preview",
+  stream: true,
+  systemPrompt: "..."
+});
+```
+
+### Why Hybrid Mode?
+
+**DOM-based alone** fails when:
+- Elements lack stable selectors
+- UI is dynamically generated
+- Shadow DOM is used
+
+**Vision-based alone** is:
+- Slower (requires screenshots)
+- Less precise for text input
+- More expensive (larger API calls)
+
+**Hybrid mode** gets the best of both worlds.
+
+## Thinking Process
+
+<Note>
+Before every action, the agent uses a `think` tool to explain its reasoning. This is enforced by Darwin's system prompt.
+</Note>
+
+### System Prompt
+
+Darwin injects a default system prompt that encourages thinking:
+
+```typescript
+const defaultSystemPrompt = `<role>
+You are simulating a human who is specialized in web interaction.
+</role>
+
+<workflow>
+Before taking any action, you MUST use the 'think' tool to explain:
+1. What you're observing on the page
+2. What you're trying to accomplish
+3. Why you're choosing this specific action
+4. What you expect to happen
+</workflow>
+
+<thinking_format>
+- Keep your thinking concise (1-2 short sentences maximum)
+- Point out anything that's not as expected
+- Make suggestions for UI improvements
+</thinking_format>
+
+<rules>
+- Always use the 'think' tool before other tools
+- NEVER USE THE ariaTree tool
+- Write thoughts in full English
+- You are a HUMAN going through a site, not an agent
+</rules>`;
+```
+
+You can override this with your own `systemPrompt` in the config.
+
+### Thought Capture
+
+Every thought is captured and stored:
+
+```typescript
+export interface ThoughtEntry {
+  step: number;           // Which step this thought is from
+  text: string;           // The actual thought text
+  timestamp: string;      // ISO timestamp
+  source: 'stream' | 'step_finish' | 'tool_result' | 'final_reasoning';
+}
+```
+
+Thoughts are captured from multiple sources:
+
+1. **Stream events** - Real-time as the model thinks
+2. **Step finish** - When a step completes
+3. **Tool results** - From `think` tool calls
+4. **Final reasoning** - Close action reasoning
+
+### Example Thought Flow
+
+```bash
+💭 Thinking: I see a sign-up button in the top right
+🔧 Action: click
+
+💭 Thinking: Form appeared, need to fill email field
+🔧 Action: type
+
+💭 Thinking: Password requirements show 8+ chars needed
+🔧 Action: type
+
+💭 Thinking: Submit button is now enabled, ready to proceed
+🔧 Action: click
+```
+
+## Visual Overlays
+
+Darwin injects three visual overlays into the browser:
+
+### 1. Timer Overlay
+
+**Shows**: Elapsed time since task start
+
+**Location**: Top-left corner
+
+**Implementation**: `packages/darwin-sdk/core/timer-overlay.ts`
+
+```typescript
+await injectTimerOverlay(page);
+// ... task runs ...
+await stopTimerOverlay(page);
+```
+
+### 2. Analytics Overlay
+
+**Shows**: Toast notifications when events are tracked
+
+**Location**: Top-right corner
+
+**Implementation**: `packages/darwin-sdk/core/analytics-overlay.ts`
+
+```typescript
+await injectAnalyticsOverlay(page);
+// Automatically shows notifications when events fire
+await removeAnalyticsOverlay(page);
+```
+
+### 3. Reasoning Overlay
+
+**Shows**: Current thought as a subtitle
+
+**Location**: Bottom center
+
+**Implementation**: `packages/darwin-sdk/core/reasoning-overlay.ts`
+
+```typescript
+await injectReasoningOverlay(page);
+// Update in real-time
+await updateReasoningText(page, "Clicking the submit button...");
+await removeReasoningOverlay(page);
+```
+
+<Tip>
+Overlays use `position: fixed` with high z-index to stay visible without interfering with page interactions.
+</Tip>
+
+## Headful vs Headless
+
+### Headful Mode (Default)
+
+With `env: "LOCAL"`, the browser window is **visible**:
+
+```json
+{
+  "env": "LOCAL"
+}
+```
+
+**Benefits**:
+- Watch the agent work
+- See visual overlays
+- Debug issues easily
+- Great for demos
+
+**Limitations**:
+- Requires local Chrome/Chromium
+- Can't run in CI/CD without display
+
+### Headless Mode (Browserbase)
+
+With `env: "BROWSERBASE"`, browser runs in the cloud:
+
+```json
+{
+  "env": "BROWSERBASE",
+  "apiKey": "...",
+  "projectId": "..."
+}
+```
+
+**Benefits**:
+- No local browser needed
+- Scales to many concurrent sessions
+- Works in CI/CD
+
+**Limitations**:
+- Can't see the browser
+- No visual overlays
+- Requires Browserbase account
+
+## Agent Lifecycle
+
+<Steps>
+  <Step title="Configuration">
+    ```typescript
+    const agent = new BrowserAgent({
+      website: "https://example.com",
+      task: "Sign up for an account",
+      model: "google/gemini-3-flash-preview",
+      maxSteps: 20,
+      verbose: 2
+    });
+    ```
+  </Step>
+
+  <Step title="Initialization">
+    ```typescript
+    await agent.init();
+    ```
+
+    - Creates Stagehand instance
+    - Configures hybrid mode
+    - Sets up event handlers
+  </Step>
+
+  <Step title="Execution">
+    ```typescript
+    const { thoughts, result, steps } = await agent.execute();
+    ```
+
+    - Navigates to website
+    - Injects visual overlays
+    - Stores task in localStorage
+    - Runs the task with streaming
+    - Captures all thoughts
+  </Step>
+
+  <Step title="Cleanup">
+    ```typescript
+    await agent.close();
+    ```
+
+    - Sends `session_ended` analytics event
+    - Removes visual overlays
+    - Closes browser
+  </Step>
+</Steps>
+
+## Event Callbacks
+
+You can hook into agent events:
+
+```typescript
+const agent = new BrowserAgent({
+  website: "https://example.com",
+  task: "Test task",
+  onEvent: (type, data) => {
+    switch (type) {
+      case 'think':
+        console.log('Agent thinking:', data.thought);
+        break;
+      case 'action':
+        console.log('Agent acting:', data.toolName);
+        break;
+      case 'status':
+        console.log('Status:', data.status);
+        break;
+      case 'error':
+        console.error('Error:', data.message);
+        break;
+    }
+  }
+});
+```
+
+## Streaming Output
+
+The agent streams in real-time:
+
+```typescript
+const streamResult = await agent.execute({
+  instruction: this.config.task,
+  maxSteps: this.config.maxSteps,
+  callbacks: {
+    prepareStep: async (stepContext) => {
+      // Modify context before each step
+      return stepContext;
+    },
+    onStepFinish: async (event) => {
+      // Handle completed step
+      console.log('Step finished:', event.toolCalls);
+    }
+  }
+});
+
+// Stream full events
+for await (const event of streamResult.fullStream) {
+  if (event.type === 'tool-call') {
+    console.log('Tool called:', event);
+  }
+}
+
+// Stream text output
+for await (const delta of streamResult.textStream) {
+  process.stdout.write(delta);
+}
+
+// Get final result
+const result = await streamResult.result;
+```
+
+## Analytics Integration
+
+The agent automatically integrates with your app's analytics:
+
+### Task Injection
+
+Before running, the agent stores the task in the page:
+
+```typescript
+await page.evaluate((task: string) => {
+  localStorage.setItem('darwin_task', task);
+  (window as any).__darwinTask = task;
+}, taskForAnalytics);
+```
+
+Your analytics can then tag events with the task name.
+
+### Session Events
+
+On close, the agent sends a `session_ended` event:
+
+```typescript
+await page.evaluate(async (task: string) => {
+  const sessionId = sessionStorage.getItem('analytics_session_id');
+  const userId = localStorage.getItem('analytics_user_id');
+  
+  await fetch('/api/events', {
+    method: 'POST',
+    body: JSON.stringify({
+      event: 'session_ended',
+      session_id: sessionId,
+      user_id: userId,
+      task: task,
+      timestamp: Date.now()
+    })
+  });
+}, this.config.task);
+```
+
+## Performance Tuning
+
+### Verbosity Levels
+
+```typescript
+verbose: 0  // Silent (errors only)
+verbose: 1  // Info (default) 
+verbose: 2  // Debug (all details)
+```
+
+### Max Steps
+
+Limit the number of actions:
+
+```json
+{
+  "maxSteps": 10  // Faster but may not complete complex tasks
+}
+```
+
+### Model Selection
+
+Faster models = lower latency:
+
+```json
+{
+  "model": "google/gemini-3-flash-preview"  // Fast
+  // vs
+  "model": "anthropic/claude-sonnet-4-5-20250929"  // More capable but slower
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Evolution Pipeline" icon="dna" href="/concepts/evolution-pipeline">
+    Learn how thoughts feed into code evolution
+  </Card>
+  <Card title="Programmatic Usage" icon="code" href="/guides/programmatic-usage">
+    Use BrowserAgent in your code
+  </Card>
+  <Card title="Models" icon="brain" href="/guides/models">
+    Choose the right AI model
+  </Card>
+  <Card title="API Reference" icon="book" href="/api/browser-agent">
+    Complete BrowserAgent API
+  </Card>
+</CardGroup>
